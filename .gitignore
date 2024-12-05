@@ -1,0 +1,97 @@
+# Rust-specific
+/target
+**/*.rs.bk
+Cargo.lock
+
+# Dependency directories
+/vendor
+/node_modules
+
+# Logs
+*.log
+logs/
+log/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# IDE and Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Temporary files
+*.tmp
+*.bak
+.tmp/
+.temp/
+
+# Build and compilation
+*.o
+*.obj
+*.exe
+*.out
+*.app
+
+# Database and backup files
+*.sqlite
+*.db
+*.db-shm
+*.db-wal
+*.backup
+
+# Profiling and debugging
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Benchmarking
+/benches/target/
+*.bench
+
+# Test artifacts
+/tests/target/
+*.test
+
+# Rust analyzer and clippy
+.rust-analyzer/
+clippy.toml
+
+# OS-specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Compiled binaries
+bin/
+/bin
+
+# Coverage reports
+/coverage
+*.gcno
+*.gcda
+lcov.info
+
+# Cargo artifacts
+/debug
+/release
+/doc
+/docs
+
+# Project-specific temporary files
+podcast_crawler.log*
+podcast_crawler.pid

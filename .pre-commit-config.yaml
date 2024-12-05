@@ -1,0 +1,75 @@
+repos:
+  # Rust-specific hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+
+  # Rust formatting and linting
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: fmt
+        name: Rust Format
+        entry: rustfmt
+        language: system
+        types: [rust]
+
+      - id: clippy
+        name: Rust Clippy
+        entry: cargo clippy
+        language: system
+        types: [rust]
+        pass_filenames: false
+        always_run: true
+
+  # Security checks
+  - repo: https://github.com/rustsec/audit-check
+    rev: v0.18.0
+    hooks:
+      - id: audit
+        name: Cargo Audit
+        entry: cargo audit
+        language: system
+        pass_filenames: false
+        always_run: true
+
+  # Markdown linting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.35.0
+    hooks:
+      - id: markdownlint
+        name: Markdown Lint
+        entry: markdownlint
+        language: node
+        types: [markdown]
+
+  # TOML formatting
+  - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
+    rev: v2.7.0
+    hooks:
+      - id: pretty-format-toml
+        name: TOML Formatter
+        args: [--autofix]
+
+  # Environment and secret scanning
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: Detect Secrets
+        entry: detect-secrets-hook
+        language: python
+
+# Global configuration
+default_language_version:
+  python: python3.9
+
+default_stages: [commit, push]
+fail_fast: true
+
+minimum_pre_commit_version: '2.20.0'

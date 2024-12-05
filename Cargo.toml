@@ -1,0 +1,96 @@
+[package]
+name = "podcast_crawler"
+version = "0.1.0"
+edition = "2021"
+description = "Async Rust podcast management and crawling system"
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/yourusername/podcast_crawler"
+keywords = ["podcast", "crawler", "async", "rust"]
+categories = ["web-programming", "command-line-utilities"]
+
+[workspace]
+members = [".", "benches"]
+
+[dependencies]
+# Async Runtime
+tokio = { version = "1.32", features = ["full"] }
+futures = "0.3"
+async-trait = "0.1"
+
+# Database
+diesel = { version = "2.1", default-features = false, features = ["postgres", "chrono", "serde_json", "numeric", "32-column-tables", "r2d2"] }
+diesel-async = { version = "0.4", features = ["postgres", "bb8"] }
+bb8 = "0.8"
+bb8-postgres = "0.8"
+r2d2 = "0.8"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Web & HTTP
+actix-web = "4.4"
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Date and Time
+chrono = { version = "0.4", features = ["serde"] }
+time = { version = "0.3", features = ["formatting"] }
+
+# Logging and Tracing
+tracing = { version = "0.1", features = ["attributes"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+
+# CLI and Configuration
+clap = { version = "4.4", features = ["derive"] }
+dotenv = "0.15"
+
+# Error Handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# RSS and Parsing
+rss = "2.0"
+
+# Utilities
+num_cpus = "1.16"
+backoff = { version = "0.4", features = ["tokio"] }
+
+[dev-dependencies]
+# Testing
+tokio-test = "0.4"
+mockall = "0.11"
+diesel_migrations = "2.1"
+criterion = { version = "0.5", features = ["async_tokio"] }
+
+# Test Utilities
+fake = { version = "2.9", features = ["derive", "chrono"] }
+rand = "0.8"
+wiremock = "0.5"
+test-log = { version = "0.2", features = ["trace"] }
+tracing-test = "0.2"
+
+[[bench]]
+name = "load_test"
+harness = false
+
+[features]
+default = []
+
+[profile.dev]
+opt-level = 1
+debug = true
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[build]
+rustflags = [
+    "-C", "target-cpu=native",
+    "-C", "link-arg=-Wl,-dead_strip",  # macOS specific optimization
+]
