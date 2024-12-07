@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          # 获取上一个tag
+          last_tag=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$last_tag" ]; then
+            # 如果没有上一个tag，获取所有提交
+            git log --pretty=format:"* %s (%h)" > RELEASE_NOTES.md
+          else
+            # 获取从上一个tag到现在的提交
+            git log --pretty=format:"* %s (%h)" ${last_tag}..HEAD > RELEASE_NOTES.md
+          fi
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+
+      - name: Save Release URL
+        run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
+
+      - name: Upload Release URL
+        uses: actions/upload-artifact@v3
+        with:
+          name: release_url
+          path: release_url.txt
+
+  build-release:
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            suffix: ''
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            suffix: ''
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            suffix: ''
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.target }}
+
+      - name: Package Binary
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czvf ../../../podcast_crawler-${{ matrix.target }}.tar.gz podcast_crawler${{ matrix.suffix }}
+          cd ../../..
+
+      - name: Download Release URL
+        uses: actions/download-artifact@v3
+        with:
+          name: release_url
+
+      - name: Upload Release Binary
+        run: |
+          upload_url=$(cat release_url.txt)
+          asset_path="podcast_crawler-${{ matrix.target }}.tar.gz"
+          asset_name="podcast_crawler-${{ matrix.target }}.tar.gz"
+          curl \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/gzip" \
+            --data-binary "@$asset_path" \
+            "${upload_url%\{*}?name=$asset_name"
