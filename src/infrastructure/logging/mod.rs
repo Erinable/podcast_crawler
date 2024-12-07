@@ -1,3 +1,50 @@
+//! Logging infrastructure for the podcast crawler application.
+//!
+//! This module provides a flexible logging system built on top of `tracing`,
+//! supporting multiple output formats and destinations.
+//!
+//! # Features
+//!
+//! - Multiple log formats (JSON, Text)
+//! - File and console output
+//! - Log rotation
+//! - Log levels
+//! - Structured logging
+//! - Request tracing
+//!
+//! # Architecture
+//!
+//! ```text
+//! ┌─────────────────┐
+//! │  LoggingConfig  │
+//! ├─────────────────┤
+//! │ Format          │
+//! │ Level           │
+//! │ Path            │
+//! │ Rotation        │
+//! └─────────────────┘
+//! ```
+//!
+//! # Example
+//!
+//! ```rust
+//! use podcast_crawler::infrastructure::{
+//!     config::LoggingConfig,
+//!     logging::init_logger,
+//! };
+//!
+//! fn setup_logging() -> Result<(), Box<dyn std::error::Error>> {
+//!     let config = LoggingConfig {
+//!         format: "json".to_string(),
+//!         level: "info".to_string(),
+//!         path: Some("logs".to_string()),
+//!         ..Default::default()
+//!     };
+//!     init_logger(&config)?;
+//!     Ok(())
+//! }
+//! ```
+
 use std::{path::Path, sync::Once};
 use time::macros::format_description;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
@@ -13,6 +60,44 @@ use crate::infrastructure::{config::LoggingConfig, error::AppResult};
 static LOGGER_INIT: Once = Once::new();
 
 /// Initialize the logging system with the provided configuration
+///
+/// This function sets up the logging system according to the provided configuration.
+/// It ensures that the logger is only initialized once using a static `Once` guard.
+///
+/// # Features
+///
+/// - Multiple output formats (JSON, Text)
+/// - Console and file output
+/// - Log rotation (Daily, Hourly)
+/// - Configurable log levels
+/// - Request span tracking
+///
+/// # Arguments
+///
+/// * `config` - Logging configuration containing format, level, and path settings
+///
+/// # Returns
+///
+/// Returns `AppResult<()>` which is:
+/// - `Ok(())` if logger initialization succeeds
+/// - `Err(AppError)` if initialization fails
+///
+/// # Example
+///
+/// ```rust
+/// use podcast_crawler::infrastructure::{
+///     config::LoggingConfig,
+///     logging::init_logger,
+/// };
+///
+/// let config = LoggingConfig {
+///     format: "json".to_string(),
+///     level: "info".to_string(),
+///     path: Some("logs".to_string()),
+///     ..Default::default()
+/// };
+/// init_logger(&config)?;
+/// ```
 pub fn init_logger(config: &LoggingConfig) -> AppResult<()> {
     // Skip if logger is already initialized
     if LOGGER_INIT.is_completed() {
@@ -122,6 +207,7 @@ mod tests {
     use super::*;
     use std::fs;
 
+    /// Test JSON format logging initialization
     #[test]
     fn test_init_logger_with_json() {
         let config = LoggingConfig {
@@ -135,6 +221,7 @@ mod tests {
         fs::remove_dir_all("target/test-logs-json").unwrap();
     }
 
+    /// Test text format logging initialization
     #[test]
     fn test_init_logger_with_text() {
         let config = LoggingConfig {
@@ -148,6 +235,7 @@ mod tests {
         fs::remove_dir_all("target/test-logs-text").unwrap();
     }
 
+    /// Test logging initialization with invalid path
     #[test]
     fn test_init_logger_invalid_path() {
         let config = LoggingConfig {

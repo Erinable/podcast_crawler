@@ -1,3 +1,46 @@
+//! Error handling for the podcast crawler application.
+//!
+//! This module provides a comprehensive error handling system that covers different types of errors:
+//! 
+//! - Domain errors (business logic)
+//! - Infrastructure errors (database, caching)
+//! - Network errors (HTTP requests, timeouts)
+//! - External errors (third-party services)
+//! - Parse errors (data parsing and validation)
+//!
+//! # Error Architecture
+//!
+//! ```text
+//! ┌─────────────────┐
+//! │    AppError     │
+//! ├─────────────────┤
+//! │  DomainError    │
+//! │ InfraError      │
+//! │ NetworkError    │
+//! │ ExternalError   │
+//! │  ParseError     │
+//! └─────────────────┘
+//! ```
+//!
+//! # Features
+//!
+//! - Error context and chaining
+//! - Automatic error logging
+//! - Retry policies
+//! - Error codes for client responses
+//!
+//! # Example
+//!
+//! ```rust
+//! use podcast_crawler::infrastructure::error::{AppError, AppResultExt};
+//!
+//! fn example() -> Result<(), AppError> {
+//!     some_operation()
+//!         .with_context("Failed to perform operation")
+//!         .log_error()
+//! }
+//! ```
+
 pub mod domain;
 pub mod external;
 pub mod infrastructure;
@@ -16,6 +59,18 @@ use r2d2::Error as PoolError;
 use std::time::Duration;
 use thiserror::Error;
 
+/// Application-wide error type that encompasses all possible errors
+/// 
+/// This enum provides a unified error type for the entire application,
+/// with variants for different categories of errors.
+/// 
+/// # Variants
+/// 
+/// - `Domain` - Business logic errors
+/// - `Infrastructure` - System and database errors
+/// - `Network` - Network and HTTP errors
+/// - `External` - Third-party service errors
+/// - `Parse` - Data parsing and validation errors
 #[derive(Error, Debug)]
 pub enum AppError {
     #[error(transparent)]
@@ -36,9 +91,50 @@ pub enum AppError {
 
 pub type AppResult<T> = Result<T, AppError>;
 
-// Error handling trait
+/// Error handling trait
+/// 
+/// This trait provides additional error handling functionality for `Result` types.
+/// 
+/// # Features
+/// 
+/// - Context addition
+/// - Error logging
+/// - Error chaining
+/// 
+/// # Example
+/// 
+/// ```rust
+/// use podcast_crawler::infrastructure::error::AppResultExt;
+/// 
+/// fn example<T, E: Into<AppError>>(result: Result<T, E>) -> Result<T, AppError> {
+///     result
+///         .with_context("Operation failed")
+///         .log_error()
+/// }
+/// ```
 pub trait AppResultExt<T> {
+    /// Adds context to an error
+    /// 
+    /// This method allows adding additional context information to an error
+    /// without losing the original error details.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `context` - Additional context information
+    /// 
+    /// # Returns
+    /// 
+    /// Returns the original result wrapped in `AppError` with added context
     fn with_context(self, context: impl Into<String>) -> Result<T, AppError>;
+
+    /// Logs an error if present
+    /// 
+    /// This method automatically logs any error using the application's
+    /// logging system before returning it.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns the original result after logging any error
     fn log_error(self) -> Result<T, AppError>;
 }
 
@@ -68,6 +164,14 @@ where
 }
 
 impl AppError {
+    /// Checks if the error is retryable
+    /// 
+    /// Determines whether the operation that caused this error
+    /// can be retried based on the error type and context.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns `true` if the operation can be retried, `false` otherwise
     pub fn is_retryable(&self) -> bool {
         match self {
             AppError::Infrastructure(e) => e.is_retryable(),
@@ -78,6 +182,14 @@ impl AppError {
         }
     }
 
+    /// Gets the recommended retry delay
+    /// 
+    /// For retryable errors, this method returns the recommended
+    /// duration to wait before retrying the operation.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns `Some(Duration)` with the recommended delay, or `None` if not applicable
     pub fn retry_after(&self) -> Option<Duration> {
         match self {
             AppError::Infrastructure(_) => None,
@@ -88,6 +200,14 @@ impl AppError {
         }
     }
 
+    /// Gets the error code
+    /// 
+    /// Returns a unique error code that can be used to identify
+    /// the type of error in client responses.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a static string containing the error code
     pub fn error_code(&self) -> &'static str {
         match self {
             AppError::Infrastructure(e) => e.error_code(),
@@ -98,6 +218,14 @@ impl AppError {
         }
     }
 
+    /// Gets the error context
+    /// 
+    /// Returns any additional context information that was added
+    /// to the error.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns `Some(&str)` with the context message, or `None` if no context was set
     pub fn context(&self) -> Option<&str> {
         match self {
             AppError::Infrastructure(e) => Some(&e.message),
@@ -108,6 +236,13 @@ impl AppError {
         }
     }
 
+    /// Sets the error context
+    /// 
+    /// Adds or updates the context information for this error.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `context` - The context message to set
     pub fn set_context(&mut self, context: String) {
         match self {
             AppError::Infrastructure(e) => e.message = context,
@@ -127,6 +262,9 @@ impl AppError {
 
 // Error conversions
 impl From<DieselError> for AppError {
+    /// Converts a Diesel error into an AppError
+    /// 
+    /// Maps database-specific errors to appropriate AppError variants
     fn from(err: DieselError) -> Self {
         AppError::Infrastructure(InfrastructureError::new(
             InfrastructureErrorKind::Database,
@@ -137,6 +275,9 @@ impl From<DieselError> for AppError {
 }
 
 impl From<PoolError> for AppError {
+    /// Converts a connection pool error into an AppError
+    /// 
+    /// Maps connection pool errors to infrastructure errors
     fn from(err: PoolError) -> Self {
         AppError::Infrastructure(InfrastructureError::new(
             InfrastructureErrorKind::Database,
@@ -147,6 +288,9 @@ impl From<PoolError> for AppError {
 }
 
 impl From<std::io::Error> for AppError {
+    /// Converts an IO error into an AppError
+    /// 
+    /// Maps system IO errors to infrastructure errors
     fn from(err: std::io::Error) -> Self {
         AppError::Infrastructure(InfrastructureError::new(
             InfrastructureErrorKind::IO,
@@ -157,6 +301,9 @@ impl From<std::io::Error> for AppError {
 }
 
 impl From<reqwest::Error> for AppError {
+    /// Converts a reqwest error into an AppError
+    /// 
+    /// Maps HTTP client errors to appropriate network or external errors
     fn from(err: reqwest::Error) -> Self {
         if err.is_timeout() {
             AppError::Network(NetworkError::new(
