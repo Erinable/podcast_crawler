@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["comment_count","duration","id","last_release_date_day_count","link","logo_url","open_rate","play_count","podcast_id","podcast_name","post_time","primary_genre_name","star","subscription","title","total_episodes_count"]};
