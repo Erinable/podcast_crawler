@@ -77,8 +77,8 @@ pub struct UpdatePodcastRank {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Link {
+    pub url: Option<String>,
     pub name: String,
-    pub url: String,
 }
 
 impl PodcastRank {

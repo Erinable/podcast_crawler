@@ -1,12 +1,18 @@
-use tokio;
-use podcast_crawler::infrastructure;
+use tracing::info;
 
+use podcast_crawler::{
+    infrastructure::{initialize, AppResult},
+    try_with_log,
+};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize app
-    let state = infrastructure::initialize().await?;
-    let result = state.repositories.podcast_rank.print_podcast_details().await?;
-    println!("{:#?}", result);
+async fn main() -> AppResult<()> {
+    let state = initialize().await?;
+
+    // 测试错误处理宏
+    try_with_log!(state.health_check().await, "Health check completed");
+
+    info!("Application started successfully");
+
     Ok(())
 }

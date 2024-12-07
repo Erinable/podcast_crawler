@@ -4,14 +4,7 @@ use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(
-    Queryable,
-    Selectable,
-    Serialize,
-    Deserialize,
-    Debug,
-    AsChangeset,
-    Clone,
-    QueryableByName,
+    Queryable, Selectable, Serialize, Deserialize, Debug, AsChangeset, Clone, QueryableByName,
 )]
 #[diesel(table_name = episodes)]
 pub struct Episode {
@@ -34,7 +27,7 @@ pub struct Episode {
     pub category: Option<Vec<Option<String>>>,
 }
 
-#[derive(Insertable, Serialize, Deserialize, AsChangeset)]
+#[derive(Insertable, Serialize, Deserialize, AsChangeset, Debug, Default)]
 #[diesel(table_name = episodes)]
 pub struct NewEpisode {
     pub podcast_id: Option<i32>,

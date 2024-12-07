@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use crate::schema::episodes;
 
+#[derive(Debug)]
 pub struct EpisodeRepository {
     base: Arc<DatabaseContext>,
 }

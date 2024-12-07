@@ -20,7 +20,14 @@ futures = "0.3"
 async-trait = "0.1"
 
 # Database
-diesel = { version = "2.1", default-features = false, features = ["postgres", "chrono", "serde_json", "numeric", "32-column-tables", "r2d2"] }
+diesel = { version = "2.1", default-features = false, features = [
+    "postgres",
+    "chrono",
+    "serde_json",
+    "numeric",
+    "32-column-tables",
+    "r2d2",
+] }
 diesel-async = { version = "0.4", features = ["postgres", "bb8"] }
 bb8 = "0.8"
 bb8-postgres = "0.8"
@@ -33,6 +40,7 @@ serde_json = "1.0"
 # Web & HTTP
 actix-web = "4.4"
 reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+url = "2.2.2"
 
 # Date and Time
 chrono = { version = "0.4", features = ["serde"] }
@@ -40,7 +48,7 @@ time = { version = "0.3", features = ["formatting"] }
 
 # Logging and Tracing
 tracing = { version = "0.1", features = ["attributes"] }
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "time", "local-time"] }
 tracing-appender = "0.2"
 
 # CLI and Configuration
@@ -53,10 +61,15 @@ thiserror = "1.0"
 
 # RSS and Parsing
 rss = "2.0"
+quick-xml = "0.31"
 
 # Utilities
 num_cpus = "1.16"
 backoff = { version = "0.4", features = ["tokio"] }
+tokio-stream = "0.1"
+governor = "0.6"
+rand = "0.8"
+tempfile = "3.14.0"
 
 [dev-dependencies]
 # Testing
@@ -88,9 +101,3 @@ opt-level = 3
 lto = true
 codegen-units = 1
 panic = "abort"
-
-[build]
-rustflags = [
-    "-C", "target-cpu=native",
-    "-C", "link-arg=-Wl,-dead_strip",  # macOS specific optimization
-]

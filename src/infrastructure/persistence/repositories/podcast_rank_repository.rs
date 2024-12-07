@@ -1,7 +1,7 @@
 use crate::infrastructure::error::AppResult;
 use crate::infrastructure::persistence::database::DatabaseContext;
 use crate::infrastructure::persistence::models::podcast_rank_model::{
-    NewPodcastRank, PodcastRank, UpdatePodcastRank,
+    Link, NewPodcastRank, PodcastRank, UpdatePodcastRank,
 };
 
 use crate::schema::podcast_rank;
@@ -9,6 +9,7 @@ use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use std::sync::Arc;
 
+#[derive(Debug)]
 pub struct PodcastRankRepository {
     base: Arc<DatabaseContext>,
 }
@@ -71,6 +72,24 @@ impl PodcastRankRepository {
             .execute(&mut conn)
             .await?;
         Ok(rows_affected > 0)
+    }
+
+    pub async fn get_rss_urls(&self) -> AppResult<Vec<String>> {
+        use crate::schema::podcast_rank::dsl::links;
+
+        let mut conn = self.base.get_connection().await?;
+        let links_data: Vec<Option<serde_json::Value>> =
+            podcast_rank::table.select(links).load(&mut conn).await?;
+
+        Ok(links_data
+            .into_iter()
+            .flatten()
+            .filter_map(|json_value| serde_json::from_value::<Vec<Link>>(json_value).ok())
+            .flat_map(|l| l.into_iter())
+            .filter(|link| link.name == "rss")
+            .filter_map(|link| link.url)
+            .filter(|url| !url.is_empty())
+            .collect())
     }
 
     pub async fn print_podcast_details(&self) -> AppResult<Vec<String>> {
