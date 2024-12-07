@@ -65,6 +65,16 @@ repos:
         entry: detect-secrets-hook
         language: python
 
+  # Custom hooks
+  - repo: local
+    hooks:
+      - id: update-changelog
+        name: Update Changelog
+        entry: ./scripts/update_changelog.sh
+        language: script
+        pass_filenames: false
+        always_run: true
+
 # Global configuration
 default_language_version:
   python: python3.9
