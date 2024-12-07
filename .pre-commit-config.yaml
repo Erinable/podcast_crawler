@@ -4,10 +4,15 @@ repos:
     rev: v4.4.0
     hooks:
       - id: trailing-whitespace
+        stages: [pre-commit]
       - id: end-of-file-fixer
+        stages: [pre-commit]
       - id: check-yaml
+        stages: [pre-commit]
       - id: check-added-large-files
+        stages: [pre-commit]
       - id: check-merge-conflict
+        stages: [pre-commit]
 
   # Rust formatting and linting
   - repo: https://github.com/doublify/pre-commit-rust
@@ -18,6 +23,7 @@ repos:
         entry: rustfmt
         language: system
         types: [rust]
+        stages: [pre-commit]
 
       - id: clippy
         name: Rust Clippy
@@ -26,17 +32,14 @@ repos:
         types: [rust]
         pass_filenames: false
         always_run: true
+        stages: [pre-commit]
 
   # Security checks
   - repo: https://github.com/rustsec/audit-check
-    rev: v0.18.0
+    rev: v1.1.1
     hooks:
-      - id: audit
-        name: Cargo Audit
-        entry: cargo audit
-        language: system
-        pass_filenames: false
-        always_run: true
+      - id: audit-check
+        stages: [pre-push]
 
   # Markdown linting
   - repo: https://github.com/igorshubovych/markdownlint-cli
@@ -47,6 +50,7 @@ repos:
         entry: markdownlint
         language: node
         types: [markdown]
+        stages: [pre-commit]
 
   # TOML formatting
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
@@ -55,6 +59,7 @@ repos:
       - id: pretty-format-toml
         name: TOML Formatter
         args: [--autofix]
+        stages: [pre-commit]
 
   # Environment and secret scanning
   - repo: https://github.com/Yelp/detect-secrets
@@ -64,6 +69,7 @@ repos:
         name: Detect Secrets
         entry: detect-secrets-hook
         language: python
+        stages: [pre-push]
 
   # Custom hooks
   - repo: local
@@ -74,12 +80,13 @@ repos:
         language: script
         pass_filenames: false
         always_run: true
+        stages: [pre-push]
 
 # Global configuration
 default_language_version:
   python: python3.9
 
-default_stages: [commit, push]
+default_stages: [pre-commit, pre-push]
 fail_fast: true
 
 minimum_pre_commit_version: '2.20.0'

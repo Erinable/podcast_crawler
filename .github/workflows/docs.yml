@@ -1,0 +1,54 @@
+name: Generate and Deploy Docs
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  # 允许手动触发
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  docs:
+    name: Generate Documentation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, rust-docs
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Generate documentation
+        run: |
+          # 生成文档，包含私有项
+          RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo doc --no-deps --document-private-items
+          
+          # 创建重定向页面
+          echo '<meta http-equiv="refresh" content="0; url=podcast_crawler">' > target/doc/index.html
+          
+          # 复制其他文档
+          cp -r docs target/doc/markdown_docs
+          
+          # 创建 .nojekyll 文件（避免 GitHub Pages 忽略下划线开头的文件）
+          touch target/doc/.nojekyll
+
+      - name: Deploy documentation
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./target/doc
+          force_orphan: true
+          commit_message: "docs: update documentation"
