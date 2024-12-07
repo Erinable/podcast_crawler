@@ -23,7 +23,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
           override: true
           components: rustfmt, rust-docs
 
@@ -33,7 +33,7 @@ jobs:
       - name: Generate documentation
         run: |
           # 生成文档，包含私有项
-          RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo doc --no-deps --document-private-items
+          cargo doc --no-deps --document-private-items
           
           # 创建重定向页面
           echo '<meta http-equiv="refresh" content="0; url=podcast_crawler">' > target/doc/index.html
