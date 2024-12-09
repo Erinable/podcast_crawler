@@ -56,6 +56,8 @@ pub enum DomainErrorKind {
     BatchProcessing,
     /// Other domain-specific errors
     Other,
+    /// Unexpected errors
+    Unexpected,
 }
 
 impl fmt::Display for DomainErrorKind {
@@ -66,6 +68,7 @@ impl fmt::Display for DomainErrorKind {
             Self::InvalidState => write!(f, "Invalid state"),
             Self::BatchProcessing => write!(f, "Batch processing error"),
             Self::Other => write!(f, "Other domain error"),
+            Self::Unexpected => write!(f, "Unexpected error"),
         }
     }
 }
@@ -158,6 +161,7 @@ impl DomainError {
     /// - `INVALID_STATE_ERROR` for invalid state errors
     /// - `BATCH_ERROR` for batch processing errors
     /// - `DOMAIN_ERROR` for other domain errors
+    /// - `UNEXPECTED_ERROR` for unexpected errors
     pub fn error_code(&self) -> &'static str {
         match self.kind {
             DomainErrorKind::Validation => "VALIDATION_ERROR",
@@ -165,6 +169,7 @@ impl DomainError {
             DomainErrorKind::InvalidState => "INVALID_STATE_ERROR",
             DomainErrorKind::BatchProcessing => "BATCH_ERROR",
             DomainErrorKind::Other => "DOMAIN_ERROR",
+            DomainErrorKind::Unexpected => "UNEXPECTED_ERROR",
         }
     }
 

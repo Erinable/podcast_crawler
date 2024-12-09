@@ -90,7 +90,7 @@ lcov.info
 /debug
 /release
 /doc
-/docs
+#/docs
 
 # Project-specific temporary files
 podcast_crawler.log*

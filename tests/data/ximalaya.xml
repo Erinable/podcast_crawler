@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+    xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <atom:link href="https://www.ximalaya.com/album/20527677.xml" type="application/rss+xml"
+            rel="self" />
+        <title>
+<![CDATA[ 能量棒 ]]>
+</title>
+        <itunes:title>
+<![CDATA[ 能量棒 ]]>
+</itunes:title>
+        <link>https://www.ximalaya.com/album/20527677</link>
+        <language>zh-cn</language>
+        <copyright>
+<![CDATA[ 雨荷在香港 @喜马拉雅FM ]]>
+</copyright>
+        <itunes:author>
+<![CDATA[ 雨荷能量棒 ]]>
+</itunes:author>
+        <description>
+<![CDATA[ 给你的身心补充能量棒电台吧！用心独到的几十分钟聊天，中英粤语跟你一起听全球各行业朋友的故事，给你的感情，工作，金钱，健康一起充电！雨荷：保送复旦转学港大→香港新加坡资产配置/公号搜"雨荷"周更4年，薇信yuhexyz加群+开心放松地找我聊天咨询吧！ ]]>
+</description>
+        <itunes:type>episodic</itunes:type>
+        <itunes:owner>
+            <itunes:name>
+<![CDATA[ 雨荷能量棒 ]]>
+</itunes:name>
+            <itunes:email>xzsydney@hotmail.com</itunes:email>
+        </itunes:owner>
+        <itunes:image
+            href="https://fdfs.xmcdn.com/storages/0a92-audiofreehighqps/4E/FC/GMCoOSQG2hUGAAKA8AGWNFf8.jpeg" />
+        <itunes:category text="Society & Culture">
+            <itunes:category text="Relationships" />
+        </itunes:category>
+        <itunes:category text="Health & Fitness">
+            <itunes:category text="Mental Health" />
+        </itunes:category>
+        <itunes:category text="Education">
+            <itunes:category text="Self-Improvement" />
+        </itunes:category>
+        <itunes:explicit>false</itunes:explicit>
+        <itunes:block>No</itunes:block>
+        <itunes:complete>No</itunes:complete>
+        <item>
+            <itunes:episodeType>full</itunes:episodeType>
+            <itunes:episode>1</itunes:episode>
+            <title>
+<![CDATA[ 68. 你的职业面具是什么颜色？上班穿西装还是防弹背心？ ]]>
+</title>
+            <itunes:title>
+<![CDATA[ 68. 你的职业面具是什么颜色？上班穿西装还是防弹背心？ ]]>
+</itunes:title>
+            <description>
+<![CDATA[ <p style="color:#333333;font-weight:normal;font-size:16px;line-height:30px;font-family:Helvetica,Arial,sans-serif;hyphens:auto;text-align:justify;" data-flag="normal">上班累吗？你会一直戴着职业面具、穿着西装外套（穿戴盔甲），贴身穿着防弹背心（掩护自己）吗？</p><span><br></span><p style="color:#333333;font-weight:normal;font-size:16px;line-height:30px;font-family:Helvetica,Arial,sans-serif;hyphens:auto;text-align:justify;" data-flag="normal">真实的样子是有吸引力的，不会累人的，也是很有力量的。你的心现在是什么颜色？那就穿成什么样，说什么样的话，让别人感受到吧！</p> ]]>
+</description>
+            <pubDate>Wed, 04 Dec 2024 10:06:00 GMT</pubDate>
+            <guid>xmly_track_780798209</guid>
+            <enclosure length="58495109" type="audio/x-m4a"
+                url="https://jt.ximalaya.com//GKwRIRwLJTZJAVQGqQM6aIx4.m4a?channel=rss&album_id=20527677&track_id=780798209&uid=139127380&jt=https://aod.cos.tx.xmcdn.com/storages/96a7-audiofreehighqps/89/D2/GKwRIRwLJTZJAVQGqQM6aIx4.m4a" />
+            <itunes:duration>1:00:55</itunes:duration>
+            <itunes:explicit>false</itunes:explicit>
+            <itunes:image
+                href="https://fdfs.xmcdn.com/storages/49d2-audiofreehighqps/2B/DD/GKwRIJEG2hRIAAEQKQGWM_Kd.jpeg" />
+            <link>https://www.ximalaya.com/sound/780798209</link>
+            <itunes:block>No</itunes:block>
+        </item>
+    </channel>
+</rss>

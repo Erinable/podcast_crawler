@@ -27,7 +27,7 @@ pub struct Episode {
     pub category: Option<Vec<Option<String>>>,
 }
 
-#[derive(Insertable, Serialize, Deserialize, AsChangeset, Debug, Default)]
+#[derive(Insertable, Serialize, Deserialize, AsChangeset, Debug, Default, Clone)]
 #[diesel(table_name = episodes)]
 pub struct NewEpisode {
     pub podcast_id: Option<i32>,

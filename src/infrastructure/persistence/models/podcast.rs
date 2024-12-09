@@ -25,7 +25,7 @@ pub struct Podcast {
     pub subtitle: Option<String>,
 }
 
-#[derive(Insertable, Debug, Clone, Serialize, Deserialize, AsChangeset)]
+#[derive(Insertable, Debug, Default, Clone, Serialize, Deserialize, AsChangeset)]
 #[diesel(table_name = podcasts)]
 pub struct NewPodcast {
     pub title: String,

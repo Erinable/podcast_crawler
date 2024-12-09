@@ -229,165 +229,84 @@ macro_rules! try_with_debug {
     };
 }
 
-/// A macro for error handling with automatic retries.
-///
-/// Attempts to execute an operation multiple times with exponential backoff
-/// before giving up. Logs each retry attempt and final failure if all attempts fail.
+/// A macro for retrying asynchronous operations with configurable retry attempts
 ///
 /// # Arguments
-/// * `$expr` - The expression that may return a Result
-/// * `max_attempts` - (Optional) Maximum number of retry attempts (default: 3)
-/// * `$context` - (Optional) A string message providing context about the error
-/// * `$field = $value` - (Optional) Additional key-value pairs for span fields
+/// * `$expr` - The async expression that may return a Result
+/// * `max_attempts` - Maximum number of retry attempts
+/// * `context` - (Optional) A context message for error logging
 ///
 /// # Examples
 ///
 /// ```rust
-/// // Simple usage with default 3 retries
-/// let result = try_with_retry!(api_call());
+/// // Basic retry
+/// let result = try_with_retry!(fetch_data(), max_attempts = 3);
 ///
-/// // Specify max attempts
-/// let result = try_with_retry!(api_call(), max_attempts = 5);
-///
-/// // With context and custom attempts
+/// // With context
 /// let result = try_with_retry!(
-///     api_call(),
-///     max_attempts = 5,
-///     "API call failed",
-///     endpoint = "/users",
-///     payload_size = size
+///     fetch_data(), 
+///     max_attempts = 3, 
+///     context = "Failed to fetch data"
 /// );
 /// ```
-///
-/// # Behavior
-/// - Uses exponential backoff between retries
-/// - Logs each retry attempt with increasing attempt number
-/// - Converts final error to AppError if all attempts fail
 #[macro_export]
 macro_rules! try_with_retry {
-    // Basic case: just the expression
-    ($expr:expr) => {
-        try_with_retry!($expr, max_attempts = 3)
-    };
-
-    // With max attempts
-    ($expr:expr, max_attempts = $max:expr) => {
-        try_with_retry!($expr, max_attempts = $max, context = "Operation failed")
-    };
-
-    // With max attempts and context
-    ($expr:expr, max_attempts = $max:expr, context = $context:expr) => {{
-        let mut attempts = 0;
-        loop {
-            match $expr {
-                Ok(val) => break Ok(val),
-                Err(e) => {
-                    let err: $crate::infrastructure::AppError = e.into();
-                    attempts += 1;
-
-                    if attempts >= $max {
-                        tracing::error!(
-                            error = %err,
-                            context = $context,
-                            attempts = attempts,
-                            "Max retry attempts reached"
-                        );
-                        break Err(err);
+    // Async retry without context
+    ($expr:expr, max_attempts = $max:expr) => {{
+        use tokio::time::{sleep, Duration};
+        
+        let result = async {
+            let mut last_error = None;
+            
+            for attempt in 0..$max {
+                match $expr {
+                    Ok(val) => return Ok(val),
+                    Err(e) => {
+                        last_error = Some(e);
+                        if attempt < $max - 1 {
+                            sleep(Duration::from_millis(100 * (attempt + 1) as u64)).await;
+                        }
                     }
-
-                    if let Some(duration) = err.retry_after() {
-                        tracing::warn!(
-                            error = %err,
-                            context = $context,
-                            retry_after = ?duration,
-                            attempts = attempts,
-                            "Rate limited, waiting before retry"
-                        );
-                        tokio::time::sleep(duration).await;
-                        continue;
-                    }
-
-                    if err.is_retryable() {
-                        let backoff = std::time::Duration::from_secs(2u64.pow(attempts));
-                        tracing::warn!(
-                            error = %err,
-                            context = $context,
-                            backoff = ?backoff,
-                            attempts = attempts,
-                            "Retryable error, using exponential backoff"
-                        );
-                        tokio::time::sleep(backoff).await;
-                        continue;
-                    }
-
-                    tracing::error!(
-                        error = %err,
-                        context = $context,
-                        "Non-retryable error occurred"
-                    );
-                    break Err(err);
                 }
             }
-        }
+            
+            Err(last_error.unwrap())
+        }.await;
+        
+        result
     }};
 
-    // With max attempts, context and additional fields
-    ($expr:expr, max_attempts = $max:expr, context = $context:expr, $($field:tt = $value:expr),+) => {{
-        let mut attempts = 0;
-        loop {
-            match $expr {
-                Ok(val) => break Ok(val),
-                Err(e) => {
-                    let err: $crate::infrastructure::AppError = e.into();
-                    attempts += 1;
-
-                    if attempts >= $max {
-                        tracing::error!(
+    // Async retry with context
+    ($expr:expr, max_attempts = $max:expr, context = $context:expr) => {{
+        use tokio::time::{sleep, Duration};
+        
+        let result = async {
+            let mut last_error = None;
+            
+            for attempt in 0..$max {
+                match $expr {
+                    Ok(val) => return Ok(val),
+                    Err(e) => {
+                        let mut err: $crate::infrastructure::error::AppError = e.into();
+                        err.set_context($context.into());
+                        tracing::info!(
                             error = %err,
                             context = $context,
-                            attempts = attempts,
-                            $($field = ?$value,)*
-                            "Max retry attempts reached"
+                            attempt = attempt + 1,
+                            "Retry operation failed"
                         );
-                        break Err(err);
+                        last_error = Some(err);
+                        
+                        if attempt < $max - 1 {
+                            sleep(Duration::from_millis(100 * (attempt + 1) as u64)).await;
+                        }
                     }
-
-                    if let Some(duration) = err.retry_after() {
-                        tracing::warn!(
-                            error = %err,
-                            context = $context,
-                            retry_after = ?duration,
-                            attempts = attempts,
-                            $($field = ?$value,)*
-                            "Rate limited, waiting before retry"
-                        );
-                        tokio::time::sleep(duration).await;
-                        continue;
-                    }
-
-                    if err.is_retryable() {
-                        let backoff = std::time::Duration::from_secs(2u64.pow(attempts));
-                        tracing::warn!(
-                            error = %err,
-                            context = $context,
-                            backoff = ?backoff,
-                            attempts = attempts,
-                            $($field = ?$value,)*
-                            "Retryable error, using exponential backoff"
-                        );
-                        tokio::time::sleep(backoff).await;
-                        continue;
-                    }
-
-                    tracing::error!(
-                        error = %err,
-                        context = $context,
-                        $($field = ?$value,)*
-                        "Non-retryable error occurred"
-                    );
-                    break Err(err);
                 }
             }
-        }
+            
+            Err(last_error.unwrap())
+        }.await;
+        
+        result
     }};
 }

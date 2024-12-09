@@ -48,12 +48,18 @@ time = { version = "0.3", features = ["formatting"] }
 
 # Logging and Tracing
 tracing = { version = "0.1", features = ["attributes"] }
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "time", "local-time"] }
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+    "json",
+    "time",
+    "local-time",
+] }
 tracing-appender = "0.2"
 
 # CLI and Configuration
 clap = { version = "4.4", features = ["derive"] }
 dotenv = "0.15"
+
 
 # Error Handling
 anyhow = "1.0"
@@ -62,6 +68,7 @@ thiserror = "1.0"
 # RSS and Parsing
 rss = "2.0"
 quick-xml = "0.31"
+ammonia = "3.3"
 
 # Utilities
 num_cpus = "1.16"
