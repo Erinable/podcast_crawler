@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["crawler","database","logging","macros","server","utils"],"struct":["Settings"]};
