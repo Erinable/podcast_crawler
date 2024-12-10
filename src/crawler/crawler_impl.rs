@@ -250,7 +250,9 @@ where
 {
     async fn fetch(&self, url: &str) -> Result<Vec<u8>, AppError> {
         println!("Attempting to fetch URL: {}", url);
-        let response = self.client.get(url)
+        let response = self
+            .client
+            .get(url)
             .header("Accept", "application/xml")
             .header("User-Agent", "PodcastCrawler/1.0")
             .send()
@@ -271,11 +273,17 @@ where
         if !response.status().is_success() {
             let status = response.status();
             let headers = response.headers().clone();
-            let error_text = response.text().await.unwrap_or_else(|_| "No error text".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "No error text".to_string());
             println!("Response body: {}", error_text);
             return Err(AppError::Network(NetworkError::new(
                 NetworkErrorKind::InvalidResponse,
-                format!("HTTP request failed with status: {}, headers: {:?}, body: {}", status, headers, error_text),
+                format!(
+                    "HTTP request failed with status: {}, headers: {:?}, body: {}",
+                    status, headers, error_text
+                ),
                 None,
                 None,
             )));

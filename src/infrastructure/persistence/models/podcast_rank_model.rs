@@ -1,8 +1,8 @@
+use crate::schema::podcast_rank;
+use chrono::NaiveDateTime;
+use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::{QueryDsl, RunQueryDsl};
-use chrono::NaiveDateTime;
-use crate::schema::podcast_rank;
-use diesel::pg::PgConnection;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -83,6 +83,8 @@ pub struct Link {
 
 impl PodcastRank {
     pub fn load(conn: &mut PgConnection) -> QueryResult<Vec<PodcastRank>> {
-        podcast_rank::table.order(podcast_rank::rank).load::<PodcastRank>(conn)
+        podcast_rank::table
+            .order(podcast_rank::rank)
+            .load::<PodcastRank>(conn)
     }
 }

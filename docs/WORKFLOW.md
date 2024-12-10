@@ -15,6 +15,7 @@
 ## 开发环境设置
 
 ### 1. 初始化开发环境
+
 ```bash
 # 1. 克隆仓库
 git clone https://github.com/your-username/podcast_crawler.git
@@ -33,6 +34,7 @@ pre-commit install
 ```
 
 ### 2. 配置 Git
+
 ```bash
 # 设置提交模板
 git config --local commit.template .gitmessage
@@ -41,6 +43,7 @@ git config --local commit.template .gitmessage
 ## 日常开发流程
 
 ### 1. 功能开发
+
 ```bash
 # 1. 创建功能分支
 git checkout -b feature/your-feature-name
@@ -63,6 +66,7 @@ cargo clippy  # 代码质量检查
 ```
 
 ### 2. 代码提交
+
 ```bash
 # 1. 检查变更
 git status
@@ -80,10 +84,13 @@ git commit
 ```
 
 ### 3. 代码审查
+
 1. 推送分支到远程仓库
+
    ```bash
    git push origin feature/your-feature-name
    ```
+
 2. 创建 Pull Request
 3. 等待代码审查
 4. 根据反馈修改代码
@@ -92,6 +99,7 @@ git commit
 ## 代码提交规范
 
 ### 提交类型
+
 - feat: 新功能
 - fix: 错误修复
 - docs: 文档更新
@@ -104,7 +112,8 @@ git commit
 - chore: 其他修改
 
 ### 提交信息格式
-```
+
+```markdown
 <类型>(<范围>): <简短描述>
 
 <详细描述>
@@ -113,7 +122,8 @@ git commit
 ```
 
 示例：
-```
+
+```markdown
 feat(crawler): 添加苹果播客支持
 
 - 实现苹果播客 RSS 解析
@@ -126,6 +136,7 @@ Closes #123
 ## 自动化工具使用
 
 ### 1. 模块生成
+
 ```bash
 # 生成 API 模块
 ./scripts/generate_module.sh src/api podcast
@@ -136,6 +147,7 @@ Closes #123
 ```
 
 ### 2. 版本管理
+
 ```bash
 # 更新版本号
 ./scripts/bump_version.sh minor  # major, minor, 或 patch
@@ -145,8 +157,10 @@ git push && git push --tags
 ```
 
 ### 3. 变更日志
+
 - 变更日志会通过 pre-commit hook 自动更新
 - 也可以手动运行：
+
   ```bash
   ./scripts/update_changelog.sh
   ```
@@ -154,6 +168,7 @@ git push && git push --tags
 ## 测试流程
 
 ### 1. 单元测试
+
 ```bash
 # 运行所有测试
 cargo test
@@ -166,12 +181,14 @@ cargo test --package module_name
 ```
 
 ### 2. 集成测试
+
 ```bash
 # 运行集成测试
 cargo test --test '*'
 ```
 
 ### 3. 基准测试
+
 ```bash
 cargo bench
 ```
@@ -179,6 +196,7 @@ cargo bench
 ## 发布流程
 
 ### 1. 准备发布
+
 ```bash
 # 1. 确保主分支是最新的
 git checkout main
@@ -192,6 +210,7 @@ cargo test
 ```
 
 ### 2. 创建发布
+
 - 推送代码和标签后，GitHub Actions 会自动：
   1. 创建 GitHub Release
   2. 构建二进制文件
@@ -199,6 +218,7 @@ cargo test
   4. 上传构建产物
 
 ### 3. 发布后检查
+
 1. 验证 GitHub Release 是否创建成功
 2. 检查二进制文件是否可以下载
 3. 验证变更日志是否正确
@@ -207,7 +227,9 @@ cargo test
 ## 问题跟踪
 
 ### 1. 问题报告
+
 创建 Issue 时请包含：
+
 - 问题描述
 - 复现步骤
 - 期望行为
@@ -215,16 +237,20 @@ cargo test
 - 环境信息
 
 ### 2. 问题修复流程
+
 1. 创建修复分支
+
    ```bash
    git checkout -b fix/issue-number
    ```
+
 2. 修复问题
 3. 添加测试
 4. 提交代码
 5. 创建 Pull Request
 
 ### 3. 问题关闭
+
 - 在提交信息中使用 "Closes #issue-number" 自动关闭问题
 - 确保所有测试通过
 - 获得代码审查批准
@@ -232,23 +258,27 @@ cargo test
 ## 最佳实践
 
 ### 1. 代码质量
+
 - 遵循 Rust 代码规范
 - 使用 clippy 进行代码质量检查
 - 保持代码简洁和可读性
 - 添加适当的注释和文档
 
 ### 2. 测试覆盖
+
 - 新功能必须有测试
 - 修复 bug 时添加回归测试
 - 保持测试简单和可维护
 
 ### 3. 性能考虑
+
 - 使用异步操作处理 I/O
 - 适当使用缓存
 - 注意资源使用效率
 - 定期进行性能测试
 
 ### 4. 安全实践
+
 - 不提交敏感信息
 - 定期更新依赖
 - 使用安全的 API

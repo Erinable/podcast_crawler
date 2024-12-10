@@ -25,6 +25,7 @@ pub struct Episode {
     pub summary: Option<String>,
     pub keywords: Option<Vec<Option<String>>>,
     pub category: Option<Vec<Option<String>>>,
+    pub duration: Option<String>,
 }
 
 #[derive(Insertable, Serialize, Deserialize, AsChangeset, Debug, Default, Clone)]
@@ -46,6 +47,7 @@ pub struct NewEpisode {
     pub summary: Option<String>,
     pub keywords: Option<Vec<Option<String>>>,
     pub category: Option<Vec<Option<String>>>,
+    pub duration: Option<String>,
 }
 
 #[derive(AsChangeset, Serialize, Deserialize, Debug)]
@@ -67,4 +69,5 @@ pub struct UpdateEpisode {
     pub summary: Option<String>,
     pub keywords: Option<Vec<Option<String>>>,
     pub category: Option<Vec<Option<String>>>,
+    pub duration: Option<String>,
 }

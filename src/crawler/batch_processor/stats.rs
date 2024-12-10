@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 
@@ -57,7 +57,7 @@ impl BatchStats {
 
     pub async fn record_result<T>(&self, result: &TaskResult<T>) {
         self.increment_total();
-        
+
         if result.success {
             self.increment_success();
         } else {
@@ -67,7 +67,7 @@ impl BatchStats {
                 self.add_error(&error_type).await;
             }
         }
-        
+
         self.add_duration(result.duration).await;
     }
 

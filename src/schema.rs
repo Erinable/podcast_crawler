@@ -46,6 +46,8 @@ diesel::table! {
         summary -> Nullable<Text>,
         keywords -> Nullable<Array<Nullable<Text>>>,
         category -> Nullable<Array<Nullable<Text>>>,
+        #[max_length = 255]
+        duration -> Nullable<Varchar>,
     }
 }
 

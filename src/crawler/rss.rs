@@ -1,17 +1,43 @@
 use std::io::BufRead;
 
-use async_trait::async_trait;
-use chrono::{DateTime, Utc};
-use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
-use quick_xml::Reader;
-use tracing::warn;
-
 use crate::crawler::traits::FeedParser;
 use crate::infrastructure::error::{
     parse::{ParseError, ParseErrorKind},
     AppError, AppResult,
 };
 use crate::infrastructure::persistence::models::{episode::NewEpisode, podcast::NewPodcast};
+use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+use quick_xml::Reader;
+use tracing::{debug, warn};
+
+/// Debugging macro for parser events.
+///
+/// Outputs a debug message with the following format:
+/// `[DEBUG][PARSER] [event_type][Tag Name: tag_name][Text: text][Path: path][State: state]`
+///
+/// # Parameters
+///
+/// * `event_type`: The type of parser event (e.g. "tag", "content", "event")
+/// * `text`: The text content of the current tag (if any)
+/// * `state`: The current state of the parser
+macro_rules! debug_info {
+    ($event_type:literal, $state:expr) => {
+        debug_info!($event_type, "None", $state);
+    };
+    ($event_type:literal, $text:expr, $state:expr) => {
+        debug!(
+            "[PARSER] [{}][Tag Name: {}][Text: {}][Path: {}][State: {:?}][Depth: {}]",
+            $event_type,
+            $state.current_tag,
+            $text,
+            $state.context.current_path(),
+            $state.current_state,
+            $state.context.current_depth()
+        );
+    };
+}
 
 /// RSS 解析上下文，用于错误处理和状态跟踪
 #[derive(Debug, Default)]
@@ -46,6 +72,10 @@ impl ParseContext {
 
     fn current_path(&self) -> String {
         self.element_path.join("/")
+    }
+
+    fn current_depth(&self) -> usize {
+        self.element_path.len()
     }
 }
 
@@ -182,7 +212,7 @@ impl RssFeedParser {
             ..Default::default()
         });
 
-        println!("Starting RSS parsing for URL: {}", url);
+        debug!("Starting RSS parsing for URL: {}", url);
         let mut buf = Vec::new();
         let mut depth = 0;
         loop {
@@ -194,64 +224,26 @@ impl RssFeedParser {
                     state.current_tag = tag_name.clone();
                     state.context.push_element(tag_name.clone());
 
-                    println!(
-                        "Start element: {}, state: {:?}, path: {}",
-                        tag_name,
-                        state.current_state,
-                        state.context.current_path()
-                    );
+                    // debug_event_info!("Start", &tag_name, &state);
+                    debug_info!("START EVENT", &state);
 
-                    match tag_name.as_str() {
-                        "channel" => {
-                            state.current_state = ParsingState::InChannel;
-                            state.podcast = Some(NewPodcast {
-                                rss_feed_url: Some(state.context.url.clone()),
-                                ..Default::default()
-                            });
-                        }
-                        "item" => {
-                            state.current_state = ParsingState::InItem;
-                            state.current_episode = Some(NewEpisode::default());
-                        }
-                        "itunes:owner" => {
-                            state.current_state = ParsingState::InChannelItunesOwner;
-                        }
-                        "itunes:name"
-                            if state.current_state == ParsingState::InChannelItunesOwner =>
-                        {
-                            state.current_state = ParsingState::InChannelItunesOwnerName;
-                        }
-                        "itunes:email"
-                            if state.current_state == ParsingState::InChannelItunesOwner =>
-                        {
-                            state.current_state = ParsingState::InChannelItunesOwnerEmail;
-                        }
-                        "itnues:image" => {}
-                        "link" => {
-                            if state.current_state == ParsingState::InChannel {
-                                state.current_state = ParsingState::InChannelLink;
-                                self.handle_channel_link(&mut state, &e)?;
-                            }
-                        }
-                        "enclosure" => {
-                            if state.current_state == ParsingState::InItem {
-                                self.handle_enclosure(&mut state, &e)?;
-                            }
-                        }
-                        _ => {}
-                    }
+                    self.handle_start_event(&mut state, &e, tag_name)?;
                 }
                 Ok(Event::End(e)) => {
                     let name = e.name();
                     let tag_name = String::from_utf8_lossy(name.as_ref()).into_owned();
-                    println!("End tag: {}, depth: {}", tag_name, depth);
+                    debug_info!("END EVENT", &state);
+                    // debug_tag_info!("End", &tag_name, &depth);
+
                     self.handle_end_element(&mut state, &e)?;
                     depth -= 1;
                 }
                 Ok(Event::Empty(e)) => {
                     let name = e.name();
                     let tag_name = String::from_utf8_lossy(name.as_ref()).into_owned();
-                    println!("Empty tag: {}, depth: {}", tag_name, depth);
+                    // debug_tag_info!("Empty", &tag_name, &depth);
+                    debug_info!("EMPTY EVENT", &state);
+
                     if tag_name == "enclosure" {
                         self.handle_enclosure(&mut state, &e)?;
                     }
@@ -265,18 +257,22 @@ impl RssFeedParser {
                             Some(Box::new(e)),
                         ))
                     })?;
-                    println!("Text content at depth {}: {}", depth, text);
+
+                    // debug_content_info!("Text", &text, &depth);
+
                     self.handle_text_event(&e, &mut state)?;
                 }
                 Ok(Event::CData(e)) => {
                     let text = String::from_utf8_lossy(&e.into_inner()).into_owned();
-                    println!("CDATA content at depth {}: {}", depth, text);
+                    // debug_content_info!("CDATA", &text, &depth);
+                    debug_info!("CDATA EVENT", &text, &state);
+
                     // Convert to BytesText for consistent handling
                     let text_event = BytesText::new(&text);
                     self.handle_text_event(&text_event, &mut state)?;
                 }
                 Ok(Event::Eof) => {
-                    println!("Reached end of RSS feed");
+                    debug!("Reached end of RSS feed");
                     break;
                 }
                 Err(e) => {
@@ -305,11 +301,57 @@ impl RssFeedParser {
         state.validate_podcast(podcast).map_err(AppError::from)?;
         let podcast = state.podcast.unwrap();
 
-        println!("Successfully parsed RSS feed:");
-        println!("- Podcast: {:#?}", podcast);
-        println!("- Episodes: {:#?}", state.episodes);
+        debug!("Successfully parsed RSS feed:");
+        debug!("- Podcast: {:#?}", podcast);
+        debug!("- Episodes: {:#?}", state.episodes);
 
         Ok((podcast, state.episodes))
+    }
+
+    fn handle_start_event(
+        &self,
+        mut state: &mut RssParserState,
+        e: &BytesStart,
+        tag_name: String,
+    ) -> Result<(), AppError> {
+        match tag_name.as_str() {
+            "channel" => {
+                state.current_state = ParsingState::InChannel;
+                state.podcast = Some(NewPodcast {
+                    rss_feed_url: Some(state.context.url.clone()),
+                    ..Default::default()
+                });
+            }
+            "item" => {
+                state.current_state = ParsingState::InItem;
+                state.current_episode = Some(NewEpisode::default());
+            }
+            "itunes:owner" => {
+                state.current_state = ParsingState::InChannelItunesOwner;
+            }
+            "itunes:name" if state.current_state == ParsingState::InChannelItunesOwner => {
+                state.current_state = ParsingState::InChannelItunesOwnerName;
+            }
+            "itunes:email" if state.current_state == ParsingState::InChannelItunesOwner => {
+                state.current_state = ParsingState::InChannelItunesOwnerEmail;
+            }
+            "itunes:image" | "itunes:category" => {
+                self.handle_image_and_category(&mut state, &e)?;
+            }
+            "link" => {
+                if state.current_state == ParsingState::InChannel {
+                    state.current_state = ParsingState::InChannelLink;
+                    self.handle_channel_link(&mut state, &e)?;
+                }
+            }
+            "enclosure" => {
+                if state.current_state == ParsingState::InItem {
+                    self.handle_enclosure(&mut state, &e)?;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
     }
 
     fn handle_enclosure(
@@ -317,11 +359,8 @@ impl RssFeedParser {
         state: &mut RssParserState,
         event: &BytesStart,
     ) -> Result<(), AppError> {
-        println!(
-            "Handling enclosure, state: {:?}, path: {}",
-            state.current_state,
-            state.context.current_path()
-        );
+        // debug_event_info!("Handling enclosure", &state.current_tag, &state);
+        debug_info!("ENCLOSURE EVENT", &state);
 
         let episode = state.current_episode.as_mut().ok_or_else(|| {
             AppError::from(ParseError::new(
@@ -365,20 +404,20 @@ impl RssFeedParser {
                             ))
                         })?;
                     }
-                    println!("Found enclosure URL: {}", normalized_url);
+                    debug!("Found enclosure URL: {}", normalized_url);
                     episode.enclosure_url = Some(normalized_url);
                     found_url = true;
                 }
                 b"type" => {
-                    println!("Found enclosure type: {}", value);
+                    debug!("Found enclosure type: {}", value);
                     episode.enclosure_type = Some(value);
                 }
                 b"length" => {
                     if let Ok(length) = value.parse() {
-                        println!("Found enclosure length: {}", length);
+                        debug!("Found enclosure length: {}", length);
                         episode.enclosure_length = Some(length);
                     } else {
-                        println!("Failed to parse enclosure length: {}", value);
+                        debug!("Failed to parse enclosure length: {}", value);
                         if self.config.strict_mode {
                             return Err(AppError::from(ParseError::new(
                                 ParseErrorKind::InvalidFormat,
@@ -390,7 +429,7 @@ impl RssFeedParser {
                     }
                 }
                 _ => {
-                    println!("Ignoring unknown enclosure attribute: {:?}", attr.key);
+                    debug!("Ignoring unknown enclosure attribute: {:?}", attr.key);
                 }
             }
         }
@@ -443,7 +482,7 @@ impl RssFeedParser {
                         return Ok(());
                     }
                     _ => {
-                        // println!("Ignoring unknown link attribute: {:?}", attr.key);
+                        debug!("Ignoring unknown link attribute: {:?}", attr.key);
                     }
                 }
             }
@@ -462,13 +501,6 @@ impl RssFeedParser {
         let name = event.name();
         let tag_name = String::from_utf8_lossy(name.as_ref()).into_owned();
         state.context.pop_element();
-
-        println!(
-            "End element: {}, state: {:?}, path: {}",
-            tag_name,
-            state.current_state,
-            state.context.current_path()
-        );
 
         match (tag_name.as_str(), &state.current_state) {
             ("channel", ParsingState::InChannel) => {
@@ -498,7 +530,7 @@ impl RssFeedParser {
 
     fn handle_item_end(&self, state: &mut RssParserState) -> Result<(), AppError> {
         if let Some(episode) = state.current_episode.take() {
-            println!("Finishing episode: {:?}", episode);
+            debug!("Finishing episode: {:?}", episode);
             state.validate_episode(&episode)?;
             state.episodes.push(episode);
         }
@@ -528,14 +560,7 @@ impl RssFeedParser {
         if text.trim().is_empty() && !self.config.allow_empty_required {
             return Ok(());
         }
-
-        println!(
-            "Text event: {}, state: {:?}, tag: {}, path: {}",
-            text,
-            state.current_state,
-            state.current_tag,
-            state.context.current_path()
-        );
+        debug_info!("TEXT EVENT", &text, &state);
 
         match (state.current_tag.as_str(), &state.current_state) {
             // Podcast 字段
@@ -590,7 +615,7 @@ impl RssFeedParser {
                         .push(Some(text.trim().to_string()));
                 }
             }
-            ("itunes:explicit", ParsingState::InChannel) => {
+            ("itunes:explicit", ParsingState::InChannelLink) => {
                 if let Some(podcast) = &mut state.podcast {
                     podcast.explicit = parse_bool(&text.trim());
                 }
@@ -643,6 +668,12 @@ impl RssFeedParser {
                     episode.guid = Some(text.trim().to_string());
                 }
             }
+            ("itunes:duration", ParsingState::InItem) => {
+                if let Some(episode) = &mut state.current_episode {
+                    episode.duration = Some(text.trim().to_string());
+                }
+            }
+
             ("itunes:author", ParsingState::InItem) => {
                 if let Some(episode) = &mut state.current_episode {
                     episode.author = Some(text.trim().to_string());
@@ -686,6 +717,91 @@ impl RssFeedParser {
             }
             _ => {}
         }
+        Ok(())
+    }
+
+    fn handle_image_and_category(
+        &self,
+        state: &mut RssParserState,
+        e: &BytesStart,
+    ) -> Result<(), AppError> {
+        // 处理 link 标签的属性
+        for attr in e.attributes() {
+            let attr = attr.map_err(|e| {
+                AppError::from(ParseError::new(
+                    ParseErrorKind::InvalidXml,
+                    "Failed to parse link attribute",
+                    &state.context.url,
+                    Some(Box::new(e)),
+                ))
+            })?;
+
+            let original = String::from_utf8_lossy(attr.value.as_ref()).into_owned();
+            let value = handle_xml_error(attr.unescape_value(), Some(original))?.into_owned();
+            match attr.key.as_ref() {
+                b"href" => {
+                    let url = value;
+                    if self.config.validate_urls {
+                        validate_url(&url).map_err(|_| {
+                            AppError::from(ParseError::new(
+                                ParseErrorKind::InvalidFormat,
+                                "Invalid link URL",
+                                &state.context.url,
+                                None,
+                            ))
+                        })?;
+                    }
+                    debug_info!("IMAGE URL", &url, &state);
+                    match &state.current_state {
+                        ParsingState::InChannel => {
+                            let podcast = state.podcast.as_mut().ok_or_else(|| {
+                                AppError::from(ParseError::new(
+                                    ParseErrorKind::Other,
+                                    "image_url tag found outside of podcast context",
+                                    &state.context.url,
+                                    None,
+                                ))
+                            })?;
+                            podcast.image_url = Some(url);
+                        }
+                        ParsingState::InItem => {
+                            let episode = state.current_episode.as_mut().ok_or_else(|| {
+                                AppError::from(ParseError::new(
+                                    ParseErrorKind::Other,
+                                    "image_url tag found outside of episode context",
+                                    &state.context.url,
+                                    None,
+                                ))
+                            })?;
+                            episode.episode_image_url = Some(url);
+                        }
+                        _ => {}
+                    }
+                    return Ok(());
+                }
+                b"text" => {
+                    let podcast = state.podcast.as_mut().ok_or_else(|| {
+                        AppError::from(ParseError::new(
+                            ParseErrorKind::Other,
+                            "image_url tag found outside of podcast context",
+                            &state.context.url,
+                            None,
+                        ))
+                    })?;
+                    podcast
+                        .category
+                        .get_or_insert_with(Vec::new)
+                        .push(Some(value.trim().to_string()));
+                }
+                _ => {
+                    debug!("Ignoring unknown link attribute: {:?}", attr.key);
+                }
+            }
+        }
+
+        // 如果没有 href 属性，等待处理标签内容
+        state.current_state = ParsingState::InChannelLink;
+
         Ok(())
     }
 }
@@ -770,7 +886,7 @@ where
     match result {
         Ok(value) => Ok(value),
         Err(e) => {
-            println!("XML parsing error: {}", e);
+            debug!("XML parsing error: {}", e);
             match e {
                 quick_xml::Error::EscapeError(e1) => {
                     // 对于转义错误，使用传入的原始值

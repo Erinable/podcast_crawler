@@ -1,0 +1,15 @@
+# 基本设置
+
+# 链式调用
+chain_width = 60
+edition = "2021"
+fn_call_width = 60
+max_width = 100
+# 其他设置
+merge_derives = true
+newline_style = "Unix"
+tab_spaces = 4
+use_field_init_shorthand = true
+# 代码格式设置
+use_small_heuristics = "Default"
+use_try_shorthand = true

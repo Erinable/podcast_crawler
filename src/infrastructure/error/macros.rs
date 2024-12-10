@@ -244,8 +244,8 @@ macro_rules! try_with_debug {
 ///
 /// // With context
 /// let result = try_with_retry!(
-///     fetch_data(), 
-///     max_attempts = 3, 
+///     fetch_data(),
+///     max_attempts = 3,
 ///     context = "Failed to fetch data"
 /// );
 /// ```
@@ -254,10 +254,10 @@ macro_rules! try_with_retry {
     // Async retry without context
     ($expr:expr, max_attempts = $max:expr) => {{
         use tokio::time::{sleep, Duration};
-        
+
         let result = async {
             let mut last_error = None;
-            
+
             for attempt in 0..$max {
                 match $expr {
                     Ok(val) => return Ok(val),
@@ -269,20 +269,20 @@ macro_rules! try_with_retry {
                     }
                 }
             }
-            
+
             Err(last_error.unwrap())
         }.await;
-        
+
         result
     }};
 
     // Async retry with context
     ($expr:expr, max_attempts = $max:expr, context = $context:expr) => {{
         use tokio::time::{sleep, Duration};
-        
+
         let result = async {
             let mut last_error = None;
-            
+
             for attempt in 0..$max {
                 match $expr {
                     Ok(val) => return Ok(val),
@@ -296,17 +296,17 @@ macro_rules! try_with_retry {
                             "Retry operation failed"
                         );
                         last_error = Some(err);
-                        
+
                         if attempt < $max - 1 {
                             sleep(Duration::from_millis(100 * (attempt + 1) as u64)).await;
                         }
                     }
                 }
             }
-            
+
             Err(last_error.unwrap())
         }.await;
-        
+
         result
     }};
 }

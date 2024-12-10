@@ -1,110 +1,99 @@
-[package]
-name = "podcast_crawler"
-version = "0.1.0"
-edition = "2021"
-description = "Async Rust podcast management and crawling system"
-authors = ["Your Name <your.email@example.com>"]
-license = "MIT"
-readme = "README.md"
-repository = "https://github.com/yourusername/podcast_crawler"
-keywords = ["podcast", "crawler", "async", "rust"]
-categories = ["web-programming", "command-line-utilities"]
-
-[workspace]
-members = [".", "benches"]
+[[bench]]
+harness = false
+name = "load_test"
 
 [dependencies]
-# Async Runtime
-tokio = { version = "1.32", features = ["full"] }
-futures = "0.3"
-async-trait = "0.1"
-
-# Database
-diesel = { version = "2.1", default-features = false, features = [
-    "postgres",
-    "chrono",
-    "serde_json",
-    "numeric",
-    "32-column-tables",
-    "r2d2",
-] }
-diesel-async = { version = "0.4", features = ["postgres", "bb8"] }
-bb8 = "0.8"
-bb8-postgres = "0.8"
-r2d2 = "0.8"
-
-# Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-
 # Web & HTTP
 actix-web = "4.4"
-reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
-url = "2.2.2"
-
-# Date and Time
-chrono = { version = "0.4", features = ["serde"] }
-time = { version = "0.3", features = ["formatting"] }
-
-# Logging and Tracing
-tracing = { version = "0.1", features = ["attributes"] }
-tracing-subscriber = { version = "0.3", features = [
-    "env-filter",
-    "json",
-    "time",
-    "local-time",
-] }
-tracing-appender = "0.2"
-
-# CLI and Configuration
-clap = { version = "4.4", features = ["derive"] }
-dotenv = "0.15"
-
-
+ammonia = "3.3"
 # Error Handling
 anyhow = "1.0"
-thiserror = "1.0"
-
-# RSS and Parsing
-rss = "2.0"
-quick-xml = "0.31"
-ammonia = "3.3"
-
+async-trait = "0.1"
+backoff = {version = "0.4", features = ["tokio"]}
+bb8 = "0.8"
+bb8-postgres = "0.8"
+# Date and Time
+chrono = {version = "0.4", features = ["serde"]}
+# CLI and Configuration
+clap = {version = "4.4", features = ["derive"]}
+# Database
+diesel = {version = ">=2.2.3", default-features = false, features = [
+  "postgres",
+  "chrono",
+  "serde_json",
+  "numeric",
+  "32-column-tables",
+  "r2d2"
+]}
+diesel-async = {version = "^0.5", features = ["postgres", "bb8"]}
+dotenv = "0.15"
+futures = "0.3"
+governor = "0.6"
 # Utilities
 num_cpus = "1.16"
-backoff = { version = "0.4", features = ["tokio"] }
-tokio-stream = "0.1"
-governor = "0.6"
+quick-xml = "0.31"
+r2d2 = "0.8"
 rand = "0.8"
+reqwest = {version = "0.11", features = ["json", "rustls-tls"]}
+# RSS and Parsing
+rss = "2.0"
+# Serialization
+serde = {version = "1.0", features = ["derive"]}
+serde_json = "1.0"
 tempfile = "3.14.0"
+thiserror = "1.0"
+time = {version = "0.3", features = ["formatting"]}
+# Async Runtime
+tokio = {version = "1.32", features = ["full"]}
+tokio-stream = "0.1"
+# Logging and Tracing
+tracing = {version = "0.1", features = ["attributes"]}
+tracing-appender = "0.2"
+tracing-subscriber = {version = "0.3", features = [
+  "env-filter",
+  "json",
+  "time",
+  "local-time"
+]}
+url = "2.2.2"
 
 [dev-dependencies]
+criterion = {version = "0.5", features = ["async_tokio"]}
+diesel_migrations = ">=2.2.0"
+# Test Utilities
+fake = {version = "2.9", features = ["derive", "chrono"]}
+mockall = "0.11"
+rand = "0.8"
+test-log = {version = "0.2", features = ["trace"]}
 # Testing
 tokio-test = "0.4"
-mockall = "0.11"
-diesel_migrations = "2.1"
-criterion = { version = "0.5", features = ["async_tokio"] }
-
-# Test Utilities
-fake = { version = "2.9", features = ["derive", "chrono"] }
-rand = "0.8"
-wiremock = "0.5"
-test-log = { version = "0.2", features = ["trace"] }
 tracing-test = "0.2"
-
-[[bench]]
-name = "load_test"
-harness = false
+wiremock = "0.5"
 
 [features]
 default = []
 
+[package]
+authors = ["Mr.han76@outlook.com"]
+categories = ["web-programming"]
+description = "Async Rust podcast management and crawling system"
+edition = "2021"
+keywords = ["podcast", "crawler", "async", "rust"]
+license = "MIT"
+name = "podcast_crawler"
+readme = "README.md"
+repository = "https://github.com/Erinable/podcast_crawler"
+version = "0.1.0"
+
 [profile.dev]
-opt-level = 1
 debug = true
+opt-level = 1
 
 [profile.release]
-opt-level = 3
-lto = true
 codegen-units = 1
+lto = true
+opt-level = 3
 panic = "abort"
+
+[workspace]
+members = [".", "benches"]

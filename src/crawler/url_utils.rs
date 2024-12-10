@@ -1,24 +1,28 @@
+use crate::infrastructure::error::{AppError, DomainError, DomainErrorKind};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::collections::HashMap;
 use url::Url;
-use crate::infrastructure::error::{AppError, DomainError, DomainErrorKind};
 
 /// Calculate the similarity between two URLs based on their domain and path structure
 pub fn calculate_url_similarity(url1: &str, url2: &str) -> Result<f64, AppError> {
-    let parsed_url1 = Url::parse(url1).map_err(|e| DomainError::new(
-        DomainErrorKind::Validation,
-        format!("Failed to parse URL: {}", url1),
-        Some(e.to_string()),
-        Some(Box::new(e)),
-    ))?;
+    let parsed_url1 = Url::parse(url1).map_err(|e| {
+        DomainError::new(
+            DomainErrorKind::Validation,
+            format!("Failed to parse URL: {}", url1),
+            Some(e.to_string()),
+            Some(Box::new(e)),
+        )
+    })?;
 
-    let parsed_url2 = Url::parse(url2).map_err(|e| DomainError::new(
-        DomainErrorKind::Validation,
-        format!("Failed to parse URL: {}", url2),
-        Some(e.to_string()),
-        Some(Box::new(e)),
-    ))?;
+    let parsed_url2 = Url::parse(url2).map_err(|e| {
+        DomainError::new(
+            DomainErrorKind::Validation,
+            format!("Failed to parse URL: {}", url2),
+            Some(e.to_string()),
+            Some(Box::new(e)),
+        )
+    })?;
 
     let domain_similarity = if parsed_url1.domain() == parsed_url2.domain() {
         1.0

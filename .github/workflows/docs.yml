@@ -34,13 +34,13 @@ jobs:
         run: |
           # 生成文档，包含私有项
           cargo doc --no-deps --document-private-items
-          
+
           # 创建重定向页面
           echo '<meta http-equiv="refresh" content="0; url=podcast_crawler">' > target/doc/index.html
-          
+
           # 复制其他文档
           cp -r docs target/doc/markdown_docs
-          
+
           # 创建 .nojekyll 文件（避免 GitHub Pages 忽略下划线开头的文件）
           touch target/doc/.nojekyll
 

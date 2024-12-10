@@ -114,6 +114,7 @@ impl PodcastRepository {
                         summary: episode.summary.clone(),
                         keywords: episode.keywords.clone(),
                         category: episode.category.clone(),
+                        duration: episode.duration.clone(),
                     })
                     .collect();
 
@@ -169,6 +170,7 @@ impl PodcastRepository {
                             summary: episode.summary.clone(),
                             keywords: episode.keywords.clone(),
                             category: episode.category.clone(),
+                            duration: episode.duration.clone(),
                         })
                         .collect();
 

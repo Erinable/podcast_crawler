@@ -1,19 +1,24 @@
-mod processor;
 mod inserter;
+mod processor;
 mod stats;
 
 use crate::crawler::traits::Crawler;
-use crate::crawler::TaskResult;
 use crate::crawler::url_utils;
+use crate::crawler::TaskResult;
 use crate::infrastructure::error::{AppError, DomainError, DomainErrorKind};
 
-pub(crate) use processor::process_batch;
 pub(crate) use inserter::BatchInserter;
+pub(crate) use processor::process_batch;
 
 impl<T> From<processor::TaskResult<T>> for TaskResult<T> {
     fn from(result: processor::TaskResult<T>) -> Self {
         match result {
-            processor::TaskResult::Success { data, duration, batch_index: _, max_batches: _ } => {
+            processor::TaskResult::Success {
+                data,
+                duration,
+                batch_index: _,
+                max_batches: _,
+            } => {
                 TaskResult {
                     url: "".to_string(), // Note: loss of original URL
                     success: true,
@@ -21,16 +26,20 @@ impl<T> From<processor::TaskResult<T>> for TaskResult<T> {
                     error_message: None,
                     duration,
                 }
-            },
-            processor::TaskResult::Failure { error, url, batch_index: _, max_batches: _, duration } => {
-                TaskResult {
-                    url,
-                    success: false,
-                    parsed_data: None,
-                    error_message: Some(error.to_string()),
-                    duration,
-                }
             }
+            processor::TaskResult::Failure {
+                error,
+                url,
+                batch_index: _,
+                max_batches: _,
+                duration,
+            } => TaskResult {
+                url,
+                success: false,
+                parsed_data: None,
+                error_message: Some(error.to_string()),
+                duration,
+            },
         }
     }
 }
@@ -98,8 +107,14 @@ where
             batch_index,
             distributed_urls.len(),
             insert_fn.clone(),
-        ).await?;
-        results.extend(batch_results.into_iter().map(|r| r.into()).collect::<Vec<_>>());
+        )
+        .await?;
+        results.extend(
+            batch_results
+                .into_iter()
+                .map(|r| r.into())
+                .collect::<Vec<_>>(),
+        );
     }
 
     Ok(results)

@@ -185,6 +185,9 @@ impl ParseError {
     /// Currently, no parsing errors are considered retryable since they
     /// are typically due to invalid data format rather than transient issues.
     pub fn is_retryable(&self) -> bool {
-        matches!(self.kind, ParseErrorKind::InvalidXml | ParseErrorKind::InvalidFormat)
+        matches!(
+            self.kind,
+            ParseErrorKind::InvalidXml | ParseErrorKind::InvalidFormat
+        )
     }
 }

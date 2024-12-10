@@ -3,11 +3,13 @@
 ## 系统要求
 
 ### 硬件要求（最小配置）
+
 - CPU: 2 核
 - 内存: 4GB RAM
 - 存储: 20GB SSD
 
 ### 软件要求
+
 - OS: Ubuntu 20.04 LTS 或更高版本
 - Rust 1.70+
 - PostgreSQL 14+
@@ -18,6 +20,7 @@
 ## 环境准备
 
 ### 1. 系统配置
+
 ```bash
 # 更新系统
 sudo apt update && sudo apt upgrade -y
@@ -27,12 +30,14 @@ sudo apt install -y build-essential pkg-config libssl-dev
 ```
 
 ### 2. 安装 Rust
+
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
 ```
 
 ### 3. 安装 PostgreSQL
+
 ```bash
 sudo apt install -y postgresql postgresql-contrib
 sudo systemctl enable postgresql
@@ -40,6 +45,7 @@ sudo systemctl start postgresql
 ```
 
 ### 4. 安装 Redis
+
 ```bash
 sudo apt install -y redis-server
 sudo systemctl enable redis-server
@@ -49,6 +55,7 @@ sudo systemctl start redis-server
 ## 部署步骤
 
 ### 1. 代码部署
+
 ```bash
 # 克隆代码
 git clone https://github.com/your-username/podcast_crawler.git
@@ -59,6 +66,7 @@ cargo build --release
 ```
 
 ### 2. 数据库配置
+
 ```bash
 # 创建数据库用户和数据库
 sudo -u postgres psql
@@ -72,6 +80,7 @@ diesel migration run
 ```
 
 ### 3. 环境变量配置
+
 ```bash
 # 复制环境变量模板
 cp .env.example .env
@@ -81,6 +90,7 @@ nano .env
 ```
 
 必要的环境变量：
+
 - DATABASE_URL
 - REDIS_URL
 - SERVER_HOST
@@ -91,11 +101,13 @@ nano .env
 ### 4. 系统服务配置
 
 创建系统服务文件：
+
 ```bash
 sudo nano /etc/systemd/system/podcast-crawler.service
 ```
 
 服务配置内容：
+
 ```ini
 [Unit]
 Description=Podcast Crawler Service
@@ -116,6 +128,7 @@ WantedBy=multi-user.target
 ```
 
 启动服务：
+
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable podcast-crawler
@@ -125,6 +138,7 @@ sudo systemctl start podcast-crawler
 ## 监控配置
 
 ### 1. 日志配置
+
 ```bash
 # 创建日志目录
 mkdir -p /var/log/podcast_crawler
@@ -135,6 +149,7 @@ sudo nano /etc/logrotate.d/podcast-crawler
 ```
 
 日志轮转配置：
+
 ```
 /var/log/podcast_crawler/*.log {
     daily
@@ -148,6 +163,7 @@ sudo nano /etc/logrotate.d/podcast-crawler
 ```
 
 ### 2. 性能监控
+
 - 使用 Prometheus 收集指标
 - 配置 Grafana 仪表板
 - 设置告警规则
@@ -155,12 +171,14 @@ sudo nano /etc/logrotate.d/podcast-crawler
 ## 备份策略
 
 ### 1. 数据库备份
+
 ```bash
 # 创建备份脚本
 nano /usr/local/bin/backup-podcast-crawler.sh
 ```
 
 备份脚本内容：
+
 ```bash
 #!/bin/bash
 BACKUP_DIR="/var/backups/podcast_crawler"
@@ -178,6 +196,7 @@ find $BACKUP_DIR -name "db_*.sql.gz" -mtime +7 -delete
 ```
 
 设置定时任务：
+
 ```bash
 chmod +x /usr/local/bin/backup-podcast-crawler.sh
 echo "0 2 * * * /usr/local/bin/backup-podcast-crawler.sh" | sudo tee -a /etc/crontab
@@ -186,6 +205,7 @@ echo "0 2 * * * /usr/local/bin/backup-podcast-crawler.sh" | sudo tee -a /etc/cro
 ## 安全配置
 
 ### 1. 防火墙配置
+
 ```bash
 # 配置 UFW
 sudo ufw allow ssh
@@ -195,6 +215,7 @@ sudo ufw enable
 ```
 
 ### 2. SSL 配置（使用 Let's Encrypt）
+
 ```bash
 # 安装 certbot
 sudo apt install -y certbot python3-certbot-nginx
@@ -204,6 +225,7 @@ sudo certbot --nginx -d your-domain.com
 ```
 
 ### 3. 系统安全
+
 - 定期更新系统包
 - 配置 fail2ban
 - 禁用 root SSH 登录
@@ -211,6 +233,7 @@ sudo certbot --nginx -d your-domain.com
 ## 故障恢复
 
 ### 1. 服务故障
+
 ```bash
 # 检查服务状态
 sudo systemctl status podcast-crawler
@@ -223,6 +246,7 @@ sudo systemctl restart podcast-crawler
 ```
 
 ### 2. 数据库恢复
+
 ```bash
 # 从备份恢复
 gunzip -c /var/backups/podcast_crawler/db_TIMESTAMP.sql.gz | \
@@ -232,6 +256,7 @@ psql -U podcast_crawler podcast_crawler
 ## 扩展配置
 
 ### 1. 负载均衡（使用 Nginx）
+
 ```nginx
 upstream podcast_crawler {
     server 127.0.0.1:8080;
@@ -251,4 +276,5 @@ server {
 ```
 
 ### 2. 容器化部署
+
 使用 Docker Compose 进行部署，配置文件见项目根目录的 `docker-compose.yml`。
