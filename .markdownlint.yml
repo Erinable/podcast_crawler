@@ -1,0 +1,24 @@
+# 默认状态：所有规则启用
+default: true
+
+MD024: false # Disable rule for duplicate headings
+MD040: false # Disable rule for Fenced code blocks should have a language specified
+MD013: false # Disable rule for Line length
+
+# MD033/no-inline-html - 允许内联HTML
+MD033: false
+
+# MD041/first-line-heading/first-line-h1 - 文件第一行必须是一级标题
+MD041: false
+
+# MD029 - 有序列表的编号样式
+MD029:
+  style: ordered
+
+# MD007 - 无序列表缩进
+MD007:
+  indent: 2
+
+# MD012 - 多个连续空行
+MD012:
+  maximum: 1

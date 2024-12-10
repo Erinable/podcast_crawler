@@ -1,18 +1,18 @@
-[package]
-name = "podcast_crawler_benches"
-version = "0.1.0"
-edition = "2021"
+[[bench]]
+harness = false
+name = "load_test"
+path = "load_test.rs"
+
+[dependencies]
+criterion = {version = "0.4", features = ["async_tokio"]}
+podcast_crawler = {path = ".."}
+tokio = {version = "1.28", features = ["full", "test-util"]}
 
 [lib]
 name = "podcast_crawler_benches"
 path = "src/lib.rs"
 
-[dependencies]
-podcast_crawler = { path = ".." }
-criterion = { version = "0.4", features = ["async_tokio"] }
-tokio = { version = "1.28", features = ["full", "test-util"] }
-
-[[bench]]
-name = "load_test"
-path = "load_test.rs"
-harness = false
+[package]
+edition = "2021"
+name = "podcast_crawler_benches"
+version = "0.1.0"

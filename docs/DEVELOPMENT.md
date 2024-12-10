@@ -1,6 +1,7 @@
 # 开发指南
 
 ## 开发环境设置
+
 1. 安装依赖
    - Rust (使用 rustup)
    - PostgreSQL
@@ -13,6 +14,7 @@
    - 配置其他必要的环境变量
 
 3. 数据库设置
+
    ```bash
    cargo install diesel_cli --no-default-features --features postgres
    diesel setup
@@ -20,16 +22,19 @@
    ```
 
 4. 运行测试
+
    ```bash
    cargo test
    ```
 
 5. 运行开发服务器
+
    ```bash
    cargo run
    ```
 
 ## 代码规范
+
 1. 代码格式
    - 使用 `cargo fmt` 格式化代码
    - 使用 `cargo clippy` 进行代码检查
@@ -51,6 +56,7 @@
    - 使用结构化日志格式（JSON）
 
 ## 测试规范
+
 1. 单元测试
    - 每个模块都应有对应的测试
    - 使用 `#[cfg(test)]` 标记测试模块
@@ -64,23 +70,29 @@
    - 运行集成测试：`cargo test --test '*'`
 
 ## 性能基准测试
+
 1. 使用 `criterion` 进行基准测试
+
    ```bash
    cargo bench
    ```
+
 2. 基准测试位于 `benches/` 目录
 3. 定期运行基准测试并记录结果
 
 ## 发布流程
+
 1. 更新版本号（Cargo.toml）
 2. CHANGELOG.md 会通过 pre-commit hook 自动更新
 3. 创建发布标签：
+
    ```bash
    git tag -a v0.1.0 -m "Release version 0.1.0"
    git push origin v0.1.0
    ```
 
 ## 故障排除
+
 1. 常见问题
    - 数据库连接问题：检查 DATABASE_URL 环境变量
    - 编译错误：运行 `cargo clean` 后重试

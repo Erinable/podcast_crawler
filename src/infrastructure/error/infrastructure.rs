@@ -5,7 +5,7 @@
 //! - File I/O
 //! - Configuration
 //! - Caching
-//! 
+//!
 //! # Error Structure
 //!
 //! ```text
@@ -39,7 +39,7 @@ use std::fmt;
 use thiserror::Error;
 
 /// Types of infrastructure errors
-/// 
+///
 /// This enum represents different categories of infrastructure-level errors
 /// that can occur in the application.
 #[derive(Debug, Clone, PartialEq)]
@@ -69,24 +69,24 @@ impl fmt::Display for InfrastructureErrorKind {
 }
 
 /// Infrastructure error type
-/// 
+///
 /// Represents errors that occur in the infrastructure layer of the application,
 /// such as database errors, I/O errors, or configuration errors.
-/// 
+///
 /// # Fields
-/// 
+///
 /// * `kind` - The type of infrastructure error
 /// * `message` - A human-readable error message
 /// * `source` - The underlying error that caused this error, if any
-/// 
+///
 /// # Example
-/// 
+///
 /// ```rust
 /// use podcast_crawler::infrastructure::error::infrastructure::{
 ///     InfrastructureError,
 ///     InfrastructureErrorKind,
 /// };
-/// 
+///
 /// let error = InfrastructureError::new(
 ///     InfrastructureErrorKind::Database,
 ///     "Failed to execute query",
@@ -105,15 +105,15 @@ pub struct InfrastructureError {
 
 impl InfrastructureError {
     /// Creates a new infrastructure error
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `kind` - The type of infrastructure error
     /// * `message` - A human-readable error message
     /// * `source` - The underlying error that caused this error, if any
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Returns a new `InfrastructureError` instance
     pub fn new(
         kind: InfrastructureErrorKind,
@@ -128,12 +128,12 @@ impl InfrastructureError {
     }
 
     /// Gets the error code for this error
-    /// 
+    ///
     /// Returns a unique code that identifies this type of error.
     /// These codes can be used in API responses or logging.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Returns a static string containing the error code:
     /// - `DATABASE_ERROR` for database errors
     /// - `IO_ERROR` for I/O errors
@@ -151,15 +151,18 @@ impl InfrastructureError {
     }
 
     /// Checks if this error is retryable
-    /// 
+    ///
     /// Determines whether the operation that caused this error
     /// can be retried.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Returns `true` if the operation can be retried, `false` otherwise.
     /// Currently, only certain database errors are considered retryable.
     pub fn is_retryable(&self) -> bool {
-        matches!(self.kind, InfrastructureErrorKind::Database | InfrastructureErrorKind::Cache)
+        matches!(
+            self.kind,
+            InfrastructureErrorKind::Database | InfrastructureErrorKind::Cache
+        )
     }
 }

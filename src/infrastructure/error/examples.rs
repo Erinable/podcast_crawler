@@ -35,7 +35,7 @@ pub fn example_error_handling(podcast_id: &str) -> Result<(), AppError> {
 // 展示重试逻辑的例子
 pub async fn fetch_with_retry(url: &str) -> Result<String, AppError> {
     // 使用 try_with_retry 宏，支持多种用法
-    
+
     // 1. 基本用法 - 使用默认重试次数
     try_with_retry!(fetch_url(url)).await?;
 

@@ -12,11 +12,11 @@ use diesel_async::pooled_connection::{bb8::Pool, AsyncDieselConnectionManager};
 use diesel_async::AsyncPgConnection;
 
 use crate::infrastructure::config::DatabaseConfig;
-use crate::infrastructure::{
-    AppError, AppResult,
-    error::infrastructure::{InfrastructureError, InfrastructureErrorKind},
-};
 use crate::infrastructure::Settings;
+use crate::infrastructure::{
+    error::infrastructure::{InfrastructureError, InfrastructureErrorKind},
+    AppError, AppResult,
+};
 
 pub type DbPool = Pool<AsyncPgConnection>;
 pub type DbConnection<'a> = PooledConnection<'a, AsyncPgConnection>;

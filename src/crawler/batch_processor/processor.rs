@@ -8,44 +8,44 @@ use crate::infrastructure::error::{AppError, DomainError, DomainErrorKind};
 
 #[derive(Debug)]
 pub enum TaskResult<T> {
-    Success { 
-        data: T, 
+    Success {
+        data: T,
         duration: Duration,
         batch_index: usize,
-        max_batches: usize 
+        max_batches: usize,
     },
-    Failure { 
-        error: AppError, 
+    Failure {
+        error: AppError,
         url: String,
         batch_index: usize,
         max_batches: usize,
-        duration: Duration 
+        duration: Duration,
     },
 }
 
 impl<T> TaskResult<T> {
     pub fn success(data: T, duration: Duration, batch_index: usize, max_batches: usize) -> Self {
-        TaskResult::Success { 
-            data, 
-            duration, 
-            batch_index, 
-            max_batches 
+        TaskResult::Success {
+            data,
+            duration,
+            batch_index,
+            max_batches,
         }
     }
 
     pub fn failure(
-        error: AppError, 
-        url: String, 
-        batch_index: usize, 
+        error: AppError,
+        url: String,
+        batch_index: usize,
         max_batches: usize,
-        duration: Duration
+        duration: Duration,
     ) -> Self {
-        TaskResult::Failure { 
-            error, 
-            url, 
-            batch_index, 
+        TaskResult::Failure {
+            error,
+            url,
+            batch_index,
             max_batches,
-            duration 
+            duration,
         }
     }
 
@@ -56,7 +56,7 @@ impl<T> TaskResult<T> {
     pub fn parsed_data(&self) -> Option<&T> {
         match self {
             TaskResult::Success { data, .. } => Some(data),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -71,33 +71,27 @@ pub async fn process_batch<T: Clone + Send + 'static>(
 ) -> Result<Vec<TaskResult<T>>, AppError> {
     let start_time = Instant::now();
 
-    let handles: Vec<_> = urls.iter()
+    let handles: Vec<_> = urls
+        .iter()
         .map(|url| {
             let url = url.clone();
             let crawler = crawler.clone();
             tokio::spawn(async move {
                 let task_start = Instant::now();
                 match crawler.fetch_and_parse(&url).await {
-                    Ok(result) => TaskResult::success(
-                        result, 
-                        task_start.elapsed(), 
-                        batch_index, 
-                        max_batches
-                    ),
-                    Err(e) => TaskResult::failure(
-                        e, 
-                        url, 
-                        batch_index, 
-                        max_batches,
-                        task_start.elapsed()
-                    )
+                    Ok(result) => {
+                        TaskResult::success(result, task_start.elapsed(), batch_index, max_batches)
+                    }
+                    Err(e) => {
+                        TaskResult::failure(e, url, batch_index, max_batches, task_start.elapsed())
+                    }
                 }
             })
         })
         .collect::<Vec<_>>();
 
-    let results: Vec<TaskResult<T>> = futures::future::try_join_all(
-        handles.into_iter().map(|handle| async move {
+    let results: Vec<TaskResult<T>> =
+        futures::future::try_join_all(handles.into_iter().map(|handle| async move {
             match handle.await {
                 Ok(task_result) => Ok::<TaskResult<T>, AppError>(task_result),
                 Err(join_error) => Ok(TaskResult::failure(
@@ -110,12 +104,11 @@ pub async fn process_batch<T: Clone + Send + 'static>(
                     "unknown".to_string(),
                     batch_index,
                     max_batches,
-                    Duration::default()
-                ))
+                    Duration::default(),
+                )),
             }
-        })
-    )
-    .await?;
+        }))
+        .await?;
 
     let successful_results: Vec<T> = results
         .iter()

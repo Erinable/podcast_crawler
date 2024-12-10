@@ -30,7 +30,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
@@ -38,7 +38,7 @@ jobs:
         toolchain: stable
         override: true
         components: rustfmt, clippy
-    
+
     - name: Cache dependencies
       uses: actions/cache@v3
       with:
@@ -47,21 +47,21 @@ jobs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-    
+
     - name: Install diesel_cli
       run: cargo install diesel_cli --no-default-features --features postgres
-    
+
     - name: Run migrations
       run: diesel migration run
-    
+
     - name: Check formatting
       run: cargo fmt -- --check
-    
+
     - name: Clippy
       run: cargo clippy -- -D warnings
-    
+
     - name: Run tests
       run: cargo test --verbose
-    
+
     - name: Build
       run: cargo build --verbose

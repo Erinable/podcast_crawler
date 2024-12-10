@@ -14,4 +14,3 @@ if [ -n "$unused_deps" ]; then
 else
     echo "No unused dependencies found."
 fi
-

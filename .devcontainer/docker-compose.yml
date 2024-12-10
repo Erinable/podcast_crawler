@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
     volumes:
@@ -11,7 +11,7 @@ services:
     network_mode: service:db
     environment:
       - DATABASE_URL=postgres://postgres:postgres@localhost/podcast_crawler_dev
-    
+
   db:
     image: postgres:14
     restart: unless-stopped

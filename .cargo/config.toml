@@ -1,14 +1,14 @@
 [alias]
-setup = "run --package podcast_crawler --bin setup"
-migrate = "run --package podcast_crawler --bin migrate"
 dev = "run --package podcast_crawler"
+migrate = "run --package podcast_crawler --bin migrate"
+setup = "run --package podcast_crawler --bin setup"
 
 [build]
 rustflags = ["-C", "target-cpu=native"]
 
+[env]
+RUST_BACKTRACE = "1"
+RUST_LOG = "debug"
+
 [target.x86_64-apple-darwin]
 rustflags = ["-C", "target-cpu=native"]
-
-[env]
-RUST_LOG = "debug"
-RUST_BACKTRACE = "1"

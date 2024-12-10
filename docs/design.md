@@ -1,4 +1,3 @@
-
 # **分布式任务调度系统架构文档**
 
 ---
@@ -20,13 +19,13 @@
 
 ### **2.1 模块划分**
 
-| 模块名          | 职责                                                                 |
-|------------------|----------------------------------------------------------------------|
-| **Job Manager**  | 接收任务请求，生成任务 ID，并将任务分发给调度器。                     |
-| **Scheduler**    | 管理任务队列，根据 Worker 状态选择节点执行任务。                      |
-| **Worker**       | 执行具体任务，并向调度器报告结果；支持失败重试逻辑。                  |
-| **State Manager**| 存储任务状态，提供任务状态查询接口，支持持久化操作。                 |
-| **Monitoring**   | 提供系统监控功能，包括任务队列状态、Worker 状态等实时数据。          |
+| 模块名            | 职责                                                        |
+| ----------------- | ----------------------------------------------------------- |
+| **Job Manager**   | 接收任务请求，生成任务 ID，并将任务分发给调度器。           |
+| **Scheduler**     | 管理任务队列，根据 Worker 状态选择节点执行任务。            |
+| **Worker**        | 执行具体任务，并向调度器报告结果；支持失败重试逻辑。        |
+| **State Manager** | 存储任务状态，提供任务状态查询接口，支持持久化操作。        |
+| **Monitoring**    | 提供系统监控功能，包括任务队列状态、Worker 状态等实时数据。 |
 
 ---
 
@@ -150,6 +149,7 @@ enum TaskStatus {
 ### **3.2 模块间接口**
 
 1. **Job Manager -> Scheduler**
+
    - **接口描述**：
      - 接口：`submit_task(task_id, payload)`
      - 参数：任务 ID（`task_id`），任务数据（`payload`）。
@@ -157,6 +157,7 @@ enum TaskStatus {
    - **调用方式**：异步消息（Tokio mpsc 通道）。
 
 2. **Scheduler -> Worker**
+
    - **接口描述**：
      - 接口：`assign_task(task_id, worker_id)`
      - 参数：任务 ID（`task_id`），Worker ID（`worker_id`）。
@@ -164,6 +165,7 @@ enum TaskStatus {
    - **调用方式**：异步消息（Tokio mpsc 通道）。
 
 3. **Worker -> Scheduler**
+
    - **接口描述**：
      - 接口：`report_task_result(task_id, status)`
      - 参数：任务 ID（`task_id`），任务状态（`status`）。
@@ -171,6 +173,7 @@ enum TaskStatus {
    - **调用方式**：异步消息（Tokio mpsc 通道）。
 
 4. **Scheduler -> State Manager**
+
    - **接口描述**：
      - 接口：`update_task_state(task_id, state)`
      - 参数：任务 ID（`task_id`），任务状态（`state`）。
@@ -191,10 +194,12 @@ enum TaskStatus {
 ### **4.1 数据流**
 
 1. **任务提交**：
+
    - 用户通过 Job Manager 提交任务。
    - 任务信息存入 Scheduler 的任务队列。
 
 2. **任务分配**：
+
    - Scheduler 根据 Worker 状态选择合适节点。
    - 将任务分配给对应 Worker。
 
@@ -208,7 +213,8 @@ enum TaskStatus {
 
 使用时序图描述任务从提交到完成的控制流。
 
-```
+```plantuml
+@startuml
 Client -> Job Manager: Submit Task
 Job Manager -> Scheduler: Add Task to Queue
 Scheduler -> Worker: Assign Task
@@ -216,6 +222,7 @@ Worker -> Scheduler: Report Task Result
 Scheduler -> State Manager: Update Task State
 Monitoring -> State Manager: Query Task State
 State Manager -> Monitoring: Return State
+@enduml
 ```
 
 ---

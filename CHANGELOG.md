@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Initial project setup with Rust
 - Basic podcast crawler infrastructure
 - Database integration with PostgreSQL
@@ -17,17 +18,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository pattern implementation
 
 ### Changed
+
 - Optimized logging configuration to reduce noise
 - Improved error handling macros documentation
 - Enhanced database connection management
 
 ### Fixed
+
 - Reduced unnecessary log output in main.rs
 - Adjusted external library log levels to warn
 
 ## [0.1.0] - 2024-12-07
 
 ### Added
+
 - Project initialization
 - Basic project structure
 - Core dependencies setup

@@ -49,7 +49,11 @@ use std::{path::Path, sync::Once};
 use time::macros::format_description;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{
-    fmt::{self, format::{FmtSpan, Format}, time::LocalTime},
+    fmt::{
+        self,
+        format::{FmtSpan, Format},
+        time::LocalTime,
+    },
     layer::SubscriberExt,
     util::SubscriberInitExt,
     EnvFilter,
@@ -124,7 +128,8 @@ pub fn init_logger(config: &LoggingConfig) -> AppResult<()> {
         let timer = LocalTime::new(time_format);
 
         // Create file layer based on format
-        let file_layer: Box<dyn tracing_subscriber::Layer<_> + Send + Sync> = if config.json_format {
+        let file_layer: Box<dyn tracing_subscriber::Layer<_> + Send + Sync> = if config.json_format
+        {
             Box::new(
                 fmt::layer()
                     .json()
@@ -159,19 +164,15 @@ pub fn init_logger(config: &LoggingConfig) -> AppResult<()> {
 
         // Create env filter with different log levels for different modules
         let env_filter = EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| {
-                EnvFilter::new(&format!(
-                    "{}",
-                    config.level
-                ))
-            })
+            .unwrap_or_else(|_| EnvFilter::new(&format!("{}", config.level)))
             // Set specific log levels for external crates
             .add_directive("tokio_postgres=warn".parse().unwrap())
             .add_directive("tokio=warn".parse().unwrap())
             .add_directive("runtime=warn".parse().unwrap())
             .add_directive("hyper=warn".parse().unwrap())
             .add_directive("sqlx=warn".parse().unwrap())
-            .add_directive("reqwest=warn".parse().unwrap());
+            .add_directive("reqwest=warn".parse().unwrap())
+            .add_directive("html5ever=warn".parse().unwrap());
 
         // Create console layer with colored output
         let stdout_layer = fmt::layer()

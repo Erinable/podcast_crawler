@@ -1,6 +1,7 @@
 # API 文档
 
 ## 认证
+
 目前处于开发阶段，暂未实现认证机制。后续会添加基于 JWT 的认证。
 
 ## 端点
@@ -8,17 +9,20 @@
 ### Podcast 相关接口
 
 #### 获取播客列表
+
 ```http
 GET /api/podcasts
 ```
 
 查询参数：
+
 - `page`: 页码（默认：1）
 - `per_page`: 每页数量（默认：20）
 - `sort`: 排序字段（可选：title, updated_at）
 - `order`: 排序方向（asc/desc）
 
 响应格式：
+
 ```json
 {
   "data": [
@@ -44,11 +48,13 @@ GET /api/podcasts
 ```
 
 #### 获取单个播客
+
 ```http
 GET /api/podcasts/{id}
 ```
 
 响应格式：
+
 ```json
 {
   "data": {
@@ -78,11 +84,13 @@ GET /api/podcasts/{id}
 ### 抓取任务相关接口
 
 #### 创建抓取任务
+
 ```http
 POST /api/crawl
 ```
 
 请求体：
+
 ```json
 {
   "feed_url": "要抓取的 RSS feed URL",
@@ -91,6 +99,7 @@ POST /api/crawl
 ```
 
 响应格式：
+
 ```json
 {
   "data": {
@@ -102,11 +111,13 @@ POST /api/crawl
 ```
 
 #### 获取任务状态
+
 ```http
 GET /api/crawl/{task_id}
 ```
 
 响应格式：
+
 ```json
 {
   "data": {
@@ -123,6 +134,7 @@ GET /api/crawl/{task_id}
 ## 错误处理
 
 所有错误响应使用统一格式：
+
 ```json
 {
   "error": {
@@ -136,6 +148,7 @@ GET /api/crawl/{task_id}
 ```
 
 常见错误码：
+
 - `INVALID_REQUEST`: 请求格式错误
 - `NOT_FOUND`: 资源不存在
 - `VALIDATION_ERROR`: 数据验证失败
@@ -144,11 +157,13 @@ GET /api/crawl/{task_id}
 - `INTERNAL_ERROR`: 内部服务器错误
 
 ## 限流策略
+
 - 每个 IP 每分钟最多 60 个请求
 - 抓取任务每个 IP 每小时最多 10 个
 - 超出限制返回 429 状态码
 
 ## 版本控制
+
 - 当前版本：v1
 - API 版本通过 URL 前缀指定：`/api/v1/...`
 - 重大更改会增加版本号

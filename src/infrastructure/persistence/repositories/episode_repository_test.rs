@@ -57,7 +57,7 @@ mod tests {
     async fn test_insert_and_get_episode() -> AppResult<()> {
         let pool = setup_test_db().await;
         let repo = EpisodeRepository::new(pool.clone());
-        
+
         // Clean up before test
         cleanup_episodes(&pool).await?;
 
@@ -80,7 +80,7 @@ mod tests {
     async fn test_get_by_id() -> AppResult<()> {
         let pool = setup_test_db().await;
         let repo = EpisodeRepository::new(pool.clone());
-        
+
         // Clean up before test
         cleanup_episodes(&pool).await?;
 
@@ -110,7 +110,7 @@ mod tests {
     async fn test_batch_insert() -> AppResult<()> {
         let pool = setup_test_db().await;
         let repo = EpisodeRepository::new(pool.clone());
-        
+
         // Clean up before test
         cleanup_episodes(&pool).await?;
 
@@ -139,7 +139,7 @@ mod tests {
     async fn test_update_episode() -> AppResult<()> {
         let pool = setup_test_db().await;
         let repo = EpisodeRepository::new(pool.clone());
-        
+
         // Clean up before test
         cleanup_episodes(&pool).await?;
 
@@ -173,7 +173,7 @@ mod tests {
     async fn test_delete_episode() -> AppResult<()> {
         let pool = setup_test_db().await;
         let repo = EpisodeRepository::new(pool.clone());
-        
+
         // Clean up before test
         cleanup_episodes(&pool).await?;
 
