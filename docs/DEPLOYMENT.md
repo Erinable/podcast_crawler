@@ -150,7 +150,7 @@ sudo nano /etc/logrotate.d/podcast-crawler
 
 日志轮转配置：
 
-```
+```text
 /var/log/podcast_crawler/*.log {
     daily
     rotate 7
