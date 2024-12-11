@@ -63,43 +63,7 @@ Copy `.env.example` to `.env` and configure your settings:
 cp .env.example .env
 ```
 
-## Development Setup
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/Erinable/podcast_crawler.git
-cd podcast_crawler
-```
-
-### 2. Install Dependencies
-
-```bash
-cargo install diesel_cli --no-default-features --features postgres
-```
-
-### 3. Database Setup
-
-```bash
-# Create databases
-createdb podcast
-```
-
-### 4. Environment Configuration
-
-Copy `.env.example` to `.env` and configure your settings:
-
-```bash
-cp .env.example .env
-```
-
-### 5. Run Migrations
-
-```bash
-diesel migration run
-```
-
-### 6. Build and Run
+### 5. Build and Run
 
 ```bash
 # Development build
@@ -109,7 +73,7 @@ cargo run
 cargo run --release
 ```
 
-### 7. Running Tests
+### 6. Running Tests
 
 ```bash
 cargo test
@@ -183,7 +147,7 @@ The project includes a comprehensive Makefile with various utility commands:
 
 ## License
 
-MIT License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Roadmap
 
