@@ -4,6 +4,9 @@ use podcast_crawler::crawler::rss::{
 };
 
 use podcast_crawler::crawler::traits::FeedParser;
+use reqwest;
+use reqwest::header::{HeaderMap, ACCEPT, USER_AGENT};
+use std::time::Instant;
 
 #[tokio::test]
 async fn test_parse_rss() {
@@ -45,6 +48,52 @@ async fn test_parse_rss() {
     assert_eq!(episode.enclosure_length, Some(58495109));
     assert_eq!(episode.link, Some("https://example.com".to_string()));
     assert_eq!(episode.explicit, Some(false));
+}
+#[tokio::test]
+async fn test_parse_larger_rss() {
+    let start_time = Instant::now();
+    let parser = RssFeedParser::new();
+    let url = "https://feeds.storyfm.cn/storyfm.xml";
+
+    // Create a reqwest client
+
+    // 启用高效配置的 HTTP 客户端
+    let client = reqwest::Client::builder()
+        .tcp_nodelay(true) // 禁用 Nagle 算法，减少延迟
+        .pool_max_idle_per_host(0) // 避免连接池闲置阻塞
+        .no_proxy() // 禁用代理
+        .build()
+        .unwrap();
+
+    // let mut headers = HeaderMap::new();
+    // headers.insert(USER_AGENT, "curl/8.7.1".parse().unwrap());
+    // headers.insert(ACCEPT, "*/*".parse().unwrap());
+
+    // Fetch the XML content from the URL using the client
+    let fetch_start_time = Instant::now();
+    let response = client
+        .get(url)
+        // .header(reqwest::header::ACCEPT_ENCODING, "identity") // 明确不接受压缩
+        .send()
+        .await
+        .unwrap();
+    let xml_content = response.text().await.unwrap();
+    let fetch_duration = fetch_start_time.elapsed();
+    println!("Time taken to fetch: {:?}", fetch_duration);
+
+    // Parse the XML content
+    let parse_start_time = Instant::now();
+    let result = parser.parse(xml_content.as_bytes(), url).await;
+    let parse_duration = parse_start_time.elapsed();
+    println!("Time taken to parse: {:?}", parse_duration);
+
+    assert!(result.is_ok(), "Failed to parse StoryFM RSS feed");
+
+    let (podcast, episodes) = result.unwrap();
+    let duration = start_time.elapsed();
+    println!("Total time taken: {:?}", duration);
+    println!("episode count: {}", episodes.len());
+    println!("episode: {:#?}", episodes[0]);
 }
 
 #[tokio::test]
@@ -97,7 +146,7 @@ async fn test_parse_ximalaya_rss() {
 
     // Verify the publication date
     if let Some(pub_date) = episode.pub_date {
-        assert_eq!(pub_date.to_rfc2822(), "Wed, 04 Dec 2024 10:06:00 +0000");
+        assert_eq!(pub_date.to_rfc2822(), "Wed, 4 Dec 2024 10:06:00 +0000");
     } else {
         panic!("Publication date is missing");
     }

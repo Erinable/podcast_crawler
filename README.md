@@ -34,7 +34,7 @@ system designed for efficient podcast data retrieval, storage, and analysis.
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/podcast_crawler.git
+git clone https://github.com/Erinable/podcast_crawler.git
 cd podcast_crawler
 ```
 
@@ -63,37 +63,102 @@ Copy `.env.example` to `.env` and configure your settings:
 cp .env.example .env
 ```
 
-## Development
+## Development Setup
 
-### Running the Application
+### 1. Clone the Repository
 
 ```bash
-# Development mode
+git clone https://github.com/Erinable/podcast_crawler.git
+cd podcast_crawler
+```
+
+### 2. Install Dependencies
+
+```bash
+cargo install diesel_cli --no-default-features --features postgres
+```
+
+### 3. Database Setup
+
+```bash
+# Create databases
+createdb podcast
+```
+
+### 4. Environment Configuration
+
+Copy `.env.example` to `.env` and configure your settings:
+
+```bash
+cp .env.example .env
+```
+
+### 5. Run Migrations
+
+```bash
+diesel migration run
+```
+
+### 6. Build and Run
+
+```bash
+# Development build
 cargo run
 
-# Specific binary
-cargo run --bin crawler
+# Release build
+cargo run --release
 ```
 
-### Testing
+### 7. Running Tests
 
 ```bash
-# Run all tests
 cargo test
-
-# Run with logging
-RUST_LOG=debug cargo test
-```
-
-### Linting and Formatting
-
-```bash
-# Format code
-cargo fmt
-
-# Clippy linting
 cargo clippy
 ```
+
+## Makefile Tools 🛠️
+
+The project includes a comprehensive Makefile with various utility commands:
+
+### Development Commands
+
+- `make run`: Run the project in development mode
+
+  ```bash
+  # Run in dev mode (default)
+  make run
+
+  # Run in release mode
+  make run BUILD_TYPE=--release
+  ```
+
+### Log Analysis
+
+- `make average`: Calculate average duration from the most recent log file
+
+  ```bash
+  make average
+  ```
+
+### Quality Checks
+
+- `make pre-commit`: Run pre-commit checks to ensure code quality
+
+  ```bash
+  make pre-commit
+  ```
+
+### Maintenance Commands
+
+- `make clean`: Clean project build artifacts
+- `make test`: Run project tests
+- `make doc`: Generate project documentation
+
+### Pro Tips 💡
+
+- Use `BUILD_TYPE=--release` for optimized performance
+- Pre-commit checks help maintain code quality
+- Log analysis provides insights into crawler performance
 
 ## Performance Optimization
 
@@ -129,12 +194,12 @@ MIT License
 
 ## Metrics
 
-![Build Status](https://img.shields.io/github/workflow/status/yourusername/podcast_crawler/Rust)
-![Coverage](https://img.shields.io/codecov/c/github/yourusername/podcast_crawler)
-![Downloads](https://img.shields.io/github/downloads/yourusername/podcast_crawler/total)
+![Build Status](https://img.shields.io/github/workflow/status/Erinable/podcast_crawler/Rust)
+![Coverage](https://img.shields.io/codecov/c/github/Erinable/podcast_crawler)
+![Downloads](https://img.shields.io/github/downloads/Erinable/podcast_crawler/total)
 
 ## Contact
 
-Your Name - <your.email@example.com>
+Arrow Tunner - <Mr.han76@outlook.com>
 
-Project Link: [https://github.com/yourusername/podcast_crawler](https://github.com/yourusername/podcast_crawler)
+Project Link: [https://github.com/Erinable/podcast_crawler](https://github.com/Erinable/podcast_crawler)

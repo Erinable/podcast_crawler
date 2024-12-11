@@ -158,8 +158,6 @@ pub struct ParserConfig {
     validate_urls: bool,
     /// 是否允许空的必需字段
     allow_empty_required: bool,
-    /// 重试次数
-    retry_count: u32,
     /// 严格模式
     strict_mode: bool,
 }
@@ -170,7 +168,6 @@ impl Default for ParserConfig {
             clean_html: true,
             validate_urls: true,
             allow_empty_required: false,
-            retry_count: 3,
             strict_mode: true,
         }
     }
@@ -203,7 +200,7 @@ impl RssFeedParser {
         url: &str,
     ) -> AppResult<(NewPodcast, Vec<NewEpisode>)> {
         let mut reader = Reader::from_reader(content);
-        reader.trim_text(true);
+        // reader.trim_text(true);
         reader.expand_empty_elements(true); // 展开空标签
 
         let mut state = RssParserState::new(url.to_string());
@@ -214,59 +211,35 @@ impl RssFeedParser {
 
         debug!("Starting RSS parsing for URL: {}", url);
         let mut buf = Vec::new();
-        let mut depth = 0;
         loop {
             match reader.read_event_into(&mut buf) {
                 Ok(Event::Start(e)) => {
-                    depth += 1;
                     let name = e.name();
                     let tag_name = String::from_utf8_lossy(name.as_ref()).into_owned();
                     state.current_tag = tag_name.clone();
                     state.context.push_element(tag_name.clone());
-
-                    // debug_event_info!("Start", &tag_name, &state);
                     debug_info!("START EVENT", &state);
-
                     self.handle_start_event(&mut state, &e, tag_name)?;
                 }
                 Ok(Event::End(e)) => {
-                    let name = e.name();
-                    let tag_name = String::from_utf8_lossy(name.as_ref()).into_owned();
                     debug_info!("END EVENT", &state);
-                    // debug_tag_info!("End", &tag_name, &depth);
-
                     self.handle_end_element(&mut state, &e)?;
-                    depth -= 1;
                 }
                 Ok(Event::Empty(e)) => {
                     let name = e.name();
                     let tag_name = String::from_utf8_lossy(name.as_ref()).into_owned();
-                    // debug_tag_info!("Empty", &tag_name, &depth);
                     debug_info!("EMPTY EVENT", &state);
-
                     if tag_name == "enclosure" {
                         self.handle_enclosure(&mut state, &e)?;
                     }
                 }
                 Ok(Event::Text(e)) => {
-                    let text = e.unescape().map_err(|e| {
-                        AppError::from(ParseError::new(
-                            ParseErrorKind::InvalidXml,
-                            "Failed to unescape text",
-                            url,
-                            Some(Box::new(e)),
-                        ))
-                    })?;
-
-                    // debug_content_info!("Text", &text, &depth);
-
                     self.handle_text_event(&e, &mut state)?;
                 }
                 Ok(Event::CData(e)) => {
                     let text = String::from_utf8_lossy(&e.into_inner()).into_owned();
                     // debug_content_info!("CDATA", &text, &depth);
                     debug_info!("CDATA EVENT", &text, &state);
-
                     // Convert to BytesText for consistent handling
                     let text_event = BytesText::new(&text);
                     self.handle_text_event(&text_event, &mut state)?;
@@ -276,12 +249,13 @@ impl RssFeedParser {
                     break;
                 }
                 Err(e) => {
-                    return Err(AppError::from(ParseError::new(
+                    return Err(ParseError::new(
                         ParseErrorKind::InvalidXml,
                         format!("Error at position {}: {:?}", reader.buffer_position(), e),
                         url,
                         Some(Box::new(e)),
-                    )))
+                    )
+                    .into())
                 }
                 _ => buf.clear(), // 忽略其他事件
             }
@@ -700,18 +674,14 @@ impl RssFeedParser {
                 }
             }
             ("link", ParsingState::InChannelLink) => {
+                let url = text.trim();
+
+                if self.config.validate_urls {
+                    validate_url(url)
+                        .map_err(|_| make_invalid_img_error(&state, "Invalid link URL"))?;
+                }
+
                 if let Some(podcast) = &mut state.podcast {
-                    let url = text.trim();
-                    if self.config.validate_urls {
-                        validate_url(url).map_err(|_| {
-                            AppError::from(ParseError::new(
-                                ParseErrorKind::InvalidFormat,
-                                "Invalid link URL",
-                                &state.context.url,
-                                None,
-                            ))
-                        })?;
-                    }
                     podcast.link = Some(url.to_string());
                 }
             }
@@ -728,12 +698,7 @@ impl RssFeedParser {
         // 处理 link 标签的属性
         for attr in e.attributes() {
             let attr = attr.map_err(|e| {
-                AppError::from(ParseError::new(
-                    ParseErrorKind::InvalidXml,
-                    "Failed to parse link attribute",
-                    &state.context.url,
-                    Some(Box::new(e)),
-                ))
+                make_invalid_format_error(state, "Failed to parse link attribute", e)
             })?;
 
             let original = String::from_utf8_lossy(attr.value.as_ref()).into_owned();
@@ -742,56 +707,50 @@ impl RssFeedParser {
                 b"href" => {
                     let url = value;
                     if self.config.validate_urls {
-                        validate_url(&url).map_err(|_| {
-                            AppError::from(ParseError::new(
-                                ParseErrorKind::InvalidFormat,
-                                "Invalid link URL",
-                                &state.context.url,
-                                None,
-                            ))
-                        })?;
+                        validate_url(&url)
+                            .map_err(|_| make_invalid_url_error(state, "Invalid link URL"))?;
                     }
                     debug_info!("IMAGE URL", &url, &state);
                     match &state.current_state {
                         ParsingState::InChannel => {
-                            let podcast = state.podcast.as_mut().ok_or_else(|| {
-                                AppError::from(ParseError::new(
-                                    ParseErrorKind::Other,
+                            // Use a separate mutable borrow
+                            if let Some(podcast) = state.podcast.as_mut() {
+                                podcast.image_url = Some(url);
+                            } else {
+                                return Err(make_invalid_img_error(
+                                    state,
                                     "image_url tag found outside of podcast context",
-                                    &state.context.url,
-                                    None,
-                                ))
-                            })?;
-                            podcast.image_url = Some(url);
+                                ));
+                            }
                         }
                         ParsingState::InItem => {
-                            let episode = state.current_episode.as_mut().ok_or_else(|| {
-                                AppError::from(ParseError::new(
-                                    ParseErrorKind::Other,
+                            // Use a separate mutable borrow
+                            if let Some(episode) = state.current_episode.as_mut() {
+                                episode.episode_image_url = Some(url);
+                            } else {
+                                return Err(make_invalid_scope_error(
+                                    state,
                                     "image_url tag found outside of episode context",
-                                    &state.context.url,
-                                    None,
-                                ))
-                            })?;
-                            episode.episode_image_url = Some(url);
+                                ));
+                            }
                         }
                         _ => {}
                     }
                     return Ok(());
                 }
                 b"text" => {
-                    let podcast = state.podcast.as_mut().ok_or_else(|| {
-                        AppError::from(ParseError::new(
-                            ParseErrorKind::Other,
+                    // Use a separate mutable borrow
+                    if let Some(podcast) = state.podcast.as_mut() {
+                        podcast
+                            .category
+                            .get_or_insert_with(Vec::new)
+                            .push(Some(value.trim().to_string()));
+                    } else {
+                        return Err(make_invalid_scope_error(
+                            state,
                             "image_url tag found outside of podcast context",
-                            &state.context.url,
-                            None,
-                        ))
-                    })?;
-                    podcast
-                        .category
-                        .get_or_insert_with(Vec::new)
-                        .push(Some(value.trim().to_string()));
+                        ));
+                    }
                 }
                 _ => {
                     debug!("Ignoring unknown link attribute: {:?}", attr.key);
@@ -804,6 +763,46 @@ impl RssFeedParser {
 
         Ok(())
     }
+}
+
+fn make_invalid_img_error(state: &RssParserState, error_message: &str) -> AppError {
+    AppError::from(ParseError::new(
+        ParseErrorKind::Other,
+        error_message,
+        &state.context.url,
+        None,
+    ))
+}
+
+fn make_invalid_url_error(state: &RssParserState, error_message: &str) -> AppError {
+    AppError::from(ParseError::new(
+        ParseErrorKind::InvalidFormat,
+        error_message,
+        &state.context.url,
+        None,
+    ))
+}
+
+fn make_invalid_format_error(
+    state: &RssParserState,
+    error_message: &str,
+    e: quick_xml::events::attributes::AttrError,
+) -> AppError {
+    AppError::from(ParseError::new(
+        ParseErrorKind::InvalidXml,
+        error_message,
+        &state.context.url,
+        Some(Box::new(e)),
+    ))
+}
+
+fn make_invalid_scope_error(state: &RssParserState, error_message: &str) -> AppError {
+    AppError::from(ParseError::new(
+        ParseErrorKind::Other,
+        error_message,
+        &state.context.url,
+        None,
+    ))
 }
 
 #[async_trait]

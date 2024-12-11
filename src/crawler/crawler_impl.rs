@@ -67,6 +67,9 @@ where
     pub fn new(parser: P, max_concurrent: usize) -> Self {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
+            .tcp_nodelay(true) // 禁用 Nagle 算法，减少延迟
+            .pool_max_idle_per_host(0) // 避免连接池闲置阻塞
+            .no_proxy() // 禁用代理
             .build()
             .expect("Failed to create HTTP client");
 
