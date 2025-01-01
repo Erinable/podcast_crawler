@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["add_task_handler","init_metrics","metrics_handler","set_crawler","start_metrics_server"],"static":["INIT"],"struct":["ACTIVE_WORKERS","AddTaskRequest","CRAWLER","FAILED_TASKS","PROCESSED_TASKS","SUBMITTED_TASKS","TASK_RETRIES","TASK_STAGE_DURATION","TASK_STATUS"]};
