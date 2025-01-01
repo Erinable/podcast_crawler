@@ -2,8 +2,10 @@ use crate::infrastructure::error::{AppError, AppResult};
 use crate::infrastructure::persistence::database::DatabaseContext;
 use crate::infrastructure::persistence::models::episode::NewEpisode;
 use crate::infrastructure::persistence::models::podcast::{NewPodcast, Podcast, UpdatePodcast};
+use crate::infrastructure::persistence::models::UpdateEpisode;
 use crate::schema::{episodes, podcasts};
 use diesel::prelude::*;
+use diesel::upsert::*;
 use diesel_async::scoped_futures::ScopedFutureExt;
 use diesel_async::{AsyncConnection, RunQueryDsl};
 use std::sync::Arc;
@@ -19,7 +21,7 @@ impl PodcastRepository {
     }
 
     pub async fn get_by_id(&self, id: i32) -> AppResult<Option<Podcast>> {
-        let mut conn = self.base.get_connection().await?; // 获取数据库连接
+        let mut conn = self.base.get_connection().await?;
         let result = podcasts::table
             .find(id)
             .first::<Podcast>(&mut conn)
@@ -29,7 +31,7 @@ impl PodcastRepository {
     }
 
     pub async fn get_by_title(&self, title: &str) -> AppResult<Option<Podcast>> {
-        let mut conn = self.base.get_connection().await?; // 获取数据库连接
+        let mut conn = self.base.get_connection().await?;
         let result = podcasts::table
             .filter(podcasts::title.eq(title))
             .first::<Podcast>(&mut conn)
@@ -88,13 +90,15 @@ impl PodcastRepository {
 
         conn.transaction::<_, AppError, _>(|conn| {
             async move {
-                // 插入播客并获取ID
+                let update_p: UpdatePodcast = new_podcast.into();
                 let inserted_podcast = diesel::insert_into(podcasts::table)
                     .values(new_podcast)
+                    .on_conflict(podcasts::title)
+                    .do_update()
+                    .set(&update_p)
                     .get_result::<Podcast>(conn)
                     .await?;
 
-                // 为剧集添加播客ID
                 let episodes_with_podcast_id: Vec<NewEpisode> = new_episodes
                     .iter()
                     .map(|episode| NewEpisode {
@@ -118,12 +122,17 @@ impl PodcastRepository {
                     })
                     .collect();
 
-                // 批量插入剧集
                 if !episodes_with_podcast_id.is_empty() {
-                    diesel::insert_into(episodes::table)
-                        .values(episodes_with_podcast_id.as_slice())
-                        .execute(conn)
-                        .await?;
+                    for episode in &episodes_with_podcast_id {
+                        let update: UpdateEpisode = episode.into();
+                        diesel::insert_into(episodes::table)
+                            .values(episode)
+                            .on_conflict(episodes::title)
+                            .do_update()
+                            .set(update)
+                            .execute(conn)
+                            .await?;
+                    }
                 }
 
                 Ok(())
@@ -144,13 +153,15 @@ impl PodcastRepository {
         conn.transaction::<_, AppError, _>(|conn| {
             async move {
                 for (new_podcast, new_episodes) in podcasts_with_episodes {
-                    // 插入播客并获取ID
+                    let update_p: UpdatePodcast = new_podcast.into();
                     let inserted_podcast = diesel::insert_into(podcasts::table)
                         .values(new_podcast)
+                        .on_conflict(podcasts::rss_feed_url)
+                        .do_update()
+                        .set(&update_p)
                         .get_result::<Podcast>(conn)
                         .await?;
 
-                    // 为剧集添加播客ID
                     let episodes_with_podcast_id: Vec<NewEpisode> = new_episodes
                         .iter()
                         .map(|episode| NewEpisode {
@@ -174,13 +185,42 @@ impl PodcastRepository {
                         })
                         .collect();
 
-                    // 批量插入剧集
                     if !episodes_with_podcast_id.is_empty() {
-                        diesel::insert_into(episodes::table)
-                            .values(episodes_with_podcast_id.as_slice())
-                            .execute(conn)
-                            .await?;
+                        for episode in &episodes_with_podcast_id {
+                            let update: UpdateEpisode = episode.into();
+                            diesel::insert_into(episodes::table)
+                                .values(episode)
+                                .on_conflict(episodes::guid)
+                                .do_update()
+                                .set(update)
+                                .execute(conn)
+                                .await?;
+                        }
                     }
+                }
+                Ok(())
+            }
+            .scope_boxed()
+        })
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn batch_upsert(&self, podcasts: &[NewPodcast]) -> AppResult<()> {
+        let mut conn = self.base.get_connection().await?;
+
+        conn.transaction::<_, AppError, _>(|conn| {
+            async move {
+                for podcast in podcasts {
+                    let update: UpdatePodcast = podcast.into();
+                    diesel::insert_into(podcasts::table)
+                        .values(podcast)
+                        .on_conflict(podcasts::rss_feed_url)
+                        .do_update()
+                        .set(&update)
+                        .execute(conn)
+                        .await?;
                 }
                 Ok(())
             }

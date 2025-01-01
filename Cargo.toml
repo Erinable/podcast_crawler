@@ -29,8 +29,11 @@ diesel-async = {version = "^0.5", features = ["postgres", "bb8"]}
 dotenv = "0.15"
 futures = "0.3"
 governor = "0.6"
+lazy_static = "1.5.0"
 # Utilities
 num_cpus = "1.16"
+prometheus = {version = "0.13.4", features = ["process"]}
+prometheus-client = "0.22.3"
 quick-xml = "0.31"
 r2d2 = "0.8"
 rand = "0.8"
@@ -46,6 +49,7 @@ time = {version = "0.3", features = ["formatting"]}
 # Async Runtime
 tokio = {version = "1.32", features = ["full"]}
 tokio-stream = "0.1"
+tokio-util = {version = "0.7.13", features = ["rt"]}
 # Logging and Tracing
 tracing = {version = "0.1", features = ["attributes"]}
 tracing-appender = "0.2"

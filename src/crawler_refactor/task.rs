@@ -2,6 +2,7 @@ use serde_json::Value;
 use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::time::Instant;
+use tracing::{error, info};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StageStatus {
@@ -12,11 +13,14 @@ pub enum StageStatus {
 }
 
 // Task 结构体
-#[derive(Debug, Clone)]
+use std::fmt;
+
+#[derive(Clone)]
 pub struct Task {
     pub id: u64,
     pub target_thread_id: usize,
     pub payload: String,
+    pub content: Vec<u8>,
     pub retries: u32,
     pub max_retries: u32,
     pub backoff_timer: Option<Instant>,
@@ -43,6 +47,7 @@ impl Task {
             id,
             target_thread_id: 0,
             payload,
+            content: Vec::new(),
             retries: 0,
             max_retries,
             backoff_timer: None,
@@ -63,35 +68,81 @@ impl Task {
             error_message: None,
         };
         self.stages.push(stage);
+        crate::metrics::TASK_STATUS
+            .with_label_values(&[name, "in_progress"])
+            .inc();
     }
 
     // 完成阶段并设置 result_data
     pub fn complete_stage(&mut self, result_data: Value) {
         if let Some(stage) = self.stages.last_mut() {
+            crate::metrics::TASK_STATUS
+                .with_label_values(&[&stage.name, "in_progress"])
+                .dec();
+
             stage.status = StageStatus::Completed;
             stage.result_data = Some(result_data); // 设置结果数据
             stage.completed_time = Some(Instant::now());
+
+            // Update metrics
+            if let (Some(start), Some(end)) = (stage.start_time, stage.completed_time) {
+                let duration = end.duration_since(start).as_secs_f64();
+                crate::metrics::TASK_STAGE_DURATION
+                    .with_label_values(&[&stage.name])
+                    .observe(duration);
+            }
+
+            // Update metrics based on stage name
+            if stage.name == "inserting" {
+                crate::metrics::PROCESSED_TASKS.inc();
+            } else if stage.name == "distribution" {
+                crate::metrics::SUBMITTED_TASKS.inc();
+            }
+            let labels = [&stage.name, "completed"];
+            crate::metrics::TASK_STATUS.with_label_values(&labels).inc();
         }
     }
 
     // 失败阶段并设置错误信息
     pub fn fail_stage(&mut self, error_message: String) {
+        error!("{}", error_message);
         if let Some(stage) = self.stages.last_mut() {
+            crate::metrics::TASK_STATUS
+                .with_label_values(&[&stage.name, "in_progress"])
+                .dec();
             stage.status = StageStatus::Failed;
             stage.error_message = Some(error_message);
             stage.completed_time = Some(Instant::now());
+
+            // Update metrics
+            if let (Some(start), Some(end)) = (stage.start_time, stage.completed_time) {
+                let duration = end.duration_since(start).as_secs_f64();
+                crate::metrics::TASK_STAGE_DURATION
+                    .with_label_values(&[&stage.name])
+                    .observe(duration);
+            }
+            crate::metrics::TASK_STATUS
+                .with_label_values(&[&stage.name, "failed"])
+                .inc();
+            crate::metrics::FAILED_TASKS.inc();
         }
     }
 
     pub fn pend_stage(&mut self) {
         if let Some(stage) = self.stages.last_mut() {
             stage.status = StageStatus::Pending;
+            crate::metrics::TASK_STATUS
+                .with_label_values(&[&stage.name, "pending"])
+                .inc();
         }
     }
 
     pub fn process_stage(&mut self) {
         if let Some(stage) = self.stages.last_mut() {
             stage.status = StageStatus::InProgress;
+            crate::metrics::TASK_STATUS
+                .with_label_values(&[&stage.name, "in_progress"])
+                .inc();
         }
     }
 
@@ -104,9 +155,26 @@ impl Task {
         }
     }
 
+    pub fn get_content(&self) -> Option<&[u8]> {
+        Some(self.content.as_slice())
+    }
+
     // 获取当前阶段的结果数据（栈顶）
     pub fn get_current_stage_result_data(&self) -> Option<&Value> {
-        self.stages.last().and_then(|s| s.result_data.as_ref())
+        self.stages.last().and_then(|s| {
+            info!("current stage name:{}", s.name);
+            s.result_data.as_ref()
+        })
+    }
+
+    pub fn get_stage_result_data_by_name(&self, stage_name: &str) -> Option<&Value> {
+        self.stages
+            .iter()
+            .find(|s| s.name == stage_name)
+            .and_then(|s| {
+                // info!("found stage: {}", s.name);
+                s.result_data.as_ref()
+            })
     }
 
     // 获取当前阶段的错误信息（栈顶）
@@ -145,3 +213,30 @@ impl PartialEq for Task {
 }
 
 impl Eq for Task {}
+
+impl fmt::Debug for Task {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let content_preview = if self.content.len() > 16 {
+            format!(
+                "{:?}... ({} bytes)",
+                &self.content[..16],
+                self.content.len()
+            )
+        } else {
+            format!("{:?}", self.content)
+        };
+
+        f.debug_struct("Task")
+            .field("id", &self.id)
+            .field("target_thread_id", &self.target_thread_id)
+            .field("payload", &self.payload)
+            .field("content", &content_preview)
+            .field("retries", &self.retries)
+            .field("max_retries", &self.max_retries)
+            .field("backoff_timer", &self.backoff_timer)
+            .field("stages", &self.stages)
+            .field("error_message", &self.error_message)
+            .field("shutdown", &self.shutdown)
+            .finish()
+    }
+}

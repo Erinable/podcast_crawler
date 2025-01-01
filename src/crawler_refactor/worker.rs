@@ -3,9 +3,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use serde_json::json;
-use tokio::{sync::broadcast, time::timeout};
+use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
+use tracing::{debug, error, info, warn};
 
 use super::{
     task::Task,
@@ -13,147 +13,250 @@ use super::{
     timer_queue::TimerQueue,
 };
 
+use crate::infrastructure::error::{
+    AppError, DomainError, DomainErrorKind, NetworkError, NetworkErrorKind,
+};
+
+/// Worker状态
+#[derive(Debug, Clone, PartialEq)]
+enum WorkerState {
+    Idle,
+    Processing,
+    Draining,
+    Shutdown,
+}
+
 /// Internal Worker structure
 #[derive(Debug, Clone)]
 pub struct Worker {
-    id: usize,
+    pub id: usize,
     max_history_size: usize,
-    in_progress_count: usize,
+    state: WorkerState,
     task_worker_maps: Arc<TaskWorkerMaps>,
+    metrics: WorkerMetrics,
+}
+
+#[derive(Debug, Clone)]
+pub struct WorkerMetrics {
+    tasks_processed: u64,
+    tasks_failed: u64,
+    tasks_retried: u64,
+    avg_process_time: Duration,
 }
 
 impl Worker {
     pub fn new(id: usize, max_history_size: usize, task_worker_maps: Arc<TaskWorkerMaps>) -> Self {
         Self {
             id,
-            in_progress_count: 0,
             max_history_size,
+            state: WorkerState::Idle,
             task_worker_maps,
+            metrics: WorkerMetrics {
+                tasks_processed: 0,
+                tasks_failed: 0,
+                tasks_retried: 0,
+                avg_process_time: Duration::ZERO,
+            },
         }
     }
 
-    pub async fn new_start(
+    pub async fn start(
         &mut self,
         mut worker_task_rx: broadcast::Receiver<Task>,
         worker_cancellation_token: CancellationToken,
         timer_queue: Arc<TimerQueue>,
         shutdown_coordinator: Arc<ShutdownCoordinator>,
     ) {
-        println!("🔧 Worker {} starting task processing loop", self.id);
-        // Keep track of tasks that were in progress when shutdown started
+        info!(worker_id = self.id, "Starting worker");
+        self.state = WorkerState::Processing;
+
         let mut in_progress_tasks = Vec::new();
-        let mut draining = false; // Flag to indicate draining state
+
         loop {
             tokio::select! {
-                Ok(mut task) = worker_task_rx.recv() => {
-                    if !draining && task.target_thread_id != self.id {
-                        println!("🔀 Worker {} skipping task (not target thread)", self.id);
-                        continue;
-                    }
-                    if !draining {
-                        println!("📋 Worker {} processing task: {}", self.id, task.payload);
-                        self.in_progress_count += 1;
-                        // Track task as in-progress
-                        in_progress_tasks.push(task.get_id());
-                        let process_result = self.process_task(&mut task).await;
-                        self.in_progress_count -= 1;
-                        // Remove task from in-progress tracking
-                        if let Some(pos) = in_progress_tasks.iter().position(|x| *x == task.get_id()) {
-                            in_progress_tasks.remove(pos);
-                        }
-                        match process_result {
-                            Ok(_) => {
-                                task.complete_stage(json!({}));
-                                self.task_worker_maps.update_task(task.get_id(),task.clone()).await;
-                                self.update_history(&task.payload).await;
-                            }
-                            Err(e) => {
-                                self.handle_task_error(&mut task, e, &timer_queue).await;
-                            }
+                result = worker_task_rx.recv() => {
+                    match result {
+                        Ok(mut task) => self.handle_task(&mut task, &timer_queue, &mut in_progress_tasks).await,
+                        Err(e) => {
+                            warn!(worker_id = self.id, "Task channel error: {}", e);
+                            continue;
                         }
                     }
-
                 }
                 _ = worker_cancellation_token.cancelled() => {
-                    draining = true;
-                    println!("Worker {} received cancellation signal, entering drain mode:{}", self.id,draining);
-
-
-                    // Wait for timer queue to finish processing
-                    let wait_result = shutdown_coordinator.wait_for_timer_queue().await;
-                    match wait_result {
-                        true => {},
-                        false => {println!("Timer queue failed to complete time out"); break},
-                    }
-                    // Mark all in-progress tasks as failed due to shutdown
-                    for task_id in in_progress_tasks.iter() {
-                        if let Some(mut task) = self.task_worker_maps.read_task(task_id).await {
-                            task.error_message = Some("shutdown signal".to_string());
-                            task.fail_stage("shutdown signal".to_string());
-                            self.task_worker_maps.update_task(task.get_id(),task).await;
-                        }
-                    }
-
-                    loop {
-                        match timeout(Duration::from_secs(5), worker_task_rx.recv()).await {
-                            Ok(Ok(mut task)) => {
-                                if task.target_thread_id != self.id {
-                                    println!("🔀 Worker {} skipping task (not target thread)", self.id);
-                                    continue;
-                                }
-
-                                if task.shutdown {
-                                    println!("receive flush data from timer queue");
-                                    task.error_message = Some("shutdown signal".to_string());
-                                    task.fail_stage("shutdown signal".to_string());
-                                    self.task_worker_maps.update_task(task.get_id(),task.clone()).await;
-                                    continue;
-                                }
-                            }
-                            Ok(Err(_)) | Err(_) => {
-                                // Timeout or channel closure
-                                println!("Worker {} no more tasks to drain, exiting", self.id);
-                                break;
-                            }
-                        }
-                    }
-
-                    println!("Worker {} drain phase complete, exiting", self.id);
-                    shutdown_coordinator.worker_completed();
+                    self.handle_shutdown(&shutdown_coordinator, &mut in_progress_tasks).await;
                     break;
                 }
             }
         }
     }
 
-    // Helper method to handle task errors
-    async fn handle_task_error(&self, task: &mut Task, e: String, timer_queue: &Arc<TimerQueue>) {
-        println!("❌ Worker {} task failed: {}", self.id, e);
-        if task.retries < task.max_retries {
-            task.retries += 1;
-            println!(
-                "🔄 Worker {} retrying task. Retry count: {}",
-                self.id, task.retries
-            );
-            task.backoff_timer = Some(Instant::now() + Duration::from_secs(1));
-            timer_queue.schedule_retry(task.clone());
-        } else {
-            println!("❗ Worker {} max retries reached", self.id);
-            task.error_message = Some(e.clone());
-            task.fail_stage(e);
+    async fn handle_task(
+        &mut self,
+        task: &mut Task,
+        timer_queue: &Arc<TimerQueue>,
+        in_progress_tasks: &mut Vec<u64>,
+    ) {
+        if self.state != WorkerState::Processing || task.target_thread_id != self.id {
+            // debug!(worker_id = self.id, "Skipping non-target task");
+            return;
         }
-        self.task_worker_maps
-            .update_task(task.get_id(), task.clone())
-            .await;
+
+        info!(worker_id = self.id, task_id = task.id, "Processing task");
+        self.metrics.tasks_processed += 1;
+        in_progress_tasks.push(task.id);
+
+        let start_time = Instant::now();
+        let result = self.process_task(task, timer_queue).await;
+        let process_time = start_time.elapsed();
+
+        self.update_metrics(process_time, result.is_err());
+        in_progress_tasks.retain(|&id| id != task.id);
+
+        if let Err(e) = result {
+            error!(worker_id = self.id, task_id = task.id, "Task failed: {}", e);
+        } else {
+            info!(worker_id = self.id, task_id = task.id, "Task completed");
+        }
     }
 
-    async fn process_task(&mut self, task: &mut Task) -> Result<(), String> {
-        // Implement your task processing logic here
-        // This is a placeholder implementation
-        match task.payload.len() {
-            0 => Err("Empty task payload".to_string()),
-            _ => Ok(()),
+    async fn process_task(
+        &mut self,
+        task: &mut Task,
+        timer_queue: &Arc<TimerQueue>,
+    ) -> Result<(), AppError> {
+        let fetch_result = self.fetch_task(task).await;
+        if let Err(e) = fetch_result {
+            return self.handle_fetch_error(task, timer_queue, e).await;
         }
+
+        self.parse_task(task).await?;
+
+        // Insert parsed data
+        self.insert_task(task).await?;
+        self.task_worker_maps
+            .update_task(task.id, task.clone())
+            .await;
+        self.update_history(&task.payload).await;
+
+        Ok(())
+    }
+
+    async fn handle_fetch_error(
+        &mut self,
+        task: &mut Task,
+        timer_queue: &Arc<TimerQueue>,
+        error: String,
+    ) -> Result<(), AppError> {
+        if task.retries < task.max_retries {
+            self.metrics.tasks_retried += 1;
+            task.retries += 1;
+            task.backoff_timer = Some(Instant::now() + Duration::from_secs(1));
+            timer_queue.schedule_retry(task.clone());
+            return Err(AppError::Network(NetworkError::new(
+                NetworkErrorKind::Connection,
+                error,
+                None,
+                Some(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "Fetch failed, retrying (attempt {}/{})",
+                        task.retries, task.max_retries
+                    ),
+                ))),
+            )));
+        }
+
+        self.metrics.tasks_failed += 1;
+        task.error_message = Some(error.clone());
+        task.fail_stage(error.clone());
+        self.task_worker_maps
+            .update_task(task.id, task.clone())
+            .await;
+
+        Err(AppError::Network(NetworkError::new(
+            NetworkErrorKind::Connection,
+            error,
+            None,
+            Some(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Max retries ({}) reached", task.max_retries),
+            ))),
+        )))
+    }
+
+    async fn handle_shutdown(
+        &mut self,
+        shutdown_coordinator: &Arc<ShutdownCoordinator>,
+        in_progress_tasks: &mut [u64],
+    ) {
+        self.state = WorkerState::Draining;
+        info!(worker_id = self.id, "Initiating shutdown");
+
+        // Wait for timer queue
+        if !shutdown_coordinator.wait_for_timer_queue().await {
+            warn!(worker_id = self.id, "Timer queue timeout during shutdown");
+        }
+
+        // Mark in-progress tasks as failed
+        for &task_id in in_progress_tasks.iter() {
+            if let Some(mut task) = self.task_worker_maps.read_task(&task_id).await {
+                task.error_message = Some("Shutdown signal".to_string());
+                task.fail_stage("Shutdown signal".to_string());
+                self.task_worker_maps.update_task(task.id, task).await;
+            }
+        }
+
+        self.state = WorkerState::Shutdown;
+        shutdown_coordinator.worker_completed();
+        info!(worker_id = self.id, "Shutdown completed");
+    }
+
+    fn update_metrics(&mut self, process_time: Duration, failed: bool) {
+        if failed {
+            self.metrics.tasks_failed += 1;
+        }
+
+        // Update average process time
+        let total_time =
+            self.metrics.avg_process_time * self.metrics.tasks_processed as u32 + process_time;
+        self.metrics.avg_process_time = total_time / (self.metrics.tasks_processed + 1) as u32;
+    }
+
+    async fn fetch_task(&mut self, task: &mut Task) -> Result<(), String> {
+        let fetcher = self.task_worker_maps.get_fetcher();
+        fetcher
+            .fetch_with_task(task)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    async fn parse_task(&mut self, task: &mut Task) -> Result<(), AppError> {
+        let parser = self.task_worker_maps.get_parser();
+        parser.parse_with_task(task).await?;
+        Ok(())
+    }
+
+    async fn insert_task(&mut self, task: &mut Task) -> Result<(), AppError> {
+        let inserter = self.task_worker_maps.get_inserter();
+        task.add_stage("inserting");
+        if let Err(e) = inserter.insert(task.clone()).await {
+            error!(
+                worker_id = self.id,
+                task_id = task.id,
+                "Insert failed: {}",
+                e
+            );
+            task.fail_stage(e.to_string());
+            return Err(DomainError::new(
+                DomainErrorKind::BatchProcessing,
+                "insert submit fail",
+                None,
+                Some(Box::new(e)),
+            )
+            .into());
+        }
+        Ok(())
     }
 
     pub async fn update_history(&mut self, url: &str) {
@@ -164,24 +267,21 @@ impl Worker {
 
     pub async fn calculate_similarity(&self, url: &str) -> f64 {
         if let Some(handled_tasks) = self.task_worker_maps.read_worker(&self.id).await {
-            println!(
-                "🔍 Worker {} calculating similarity for URL '{}', handle list:{:#?}",
-                self.id, url, handled_tasks
-            );
-
             if handled_tasks.is_empty() {
                 return 0.0;
             }
 
-            // Calculate similarity while holding the lock
-            let similarity = handled_tasks
+            handled_tasks
                 .iter()
                 .filter(|&handled| handled == url)
                 .count() as f64
-                + 1.0 / handled_tasks.len() as f64;
-            similarity
+                + 1.0 / handled_tasks.len() as f64
         } else {
             0.0
         }
+    }
+
+    pub fn get_metrics(&self) -> &WorkerMetrics {
+        &self.metrics
     }
 }

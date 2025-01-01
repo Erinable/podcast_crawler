@@ -1,5 +1,9 @@
 pub mod distributor;
 pub mod inserter_refactored;
+mod pipeline;
+mod rss;
+pub mod rss_crawler;
+mod rss_fetcher;
 pub mod task;
 pub mod task_management_system;
 pub mod thread_manager;

@@ -1,164 +1,20 @@
 use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::task;
+use std::time::Duration;
 
 use tokio::sync::{mpsc, Mutex, Semaphore};
 use tokio::task::JoinHandle;
 use tokio::time::timeout;
 use tracing::{error, info, warn};
 
-use futures::stream::{Stream, StreamExt};
-use rand::Rng;
-use std::collections::BinaryHeap;
-
-// Placeholder types (replace with your actual types)
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-struct InputData {
-    value: u32,
-    retry_count: u32,
-    last_attempt_time: std::time::Instant,
-}
+use super::task::Task;
 
 #[derive(Clone, Debug)]
-struct Data(u32);
-
-// Wrapper for BinaryHeap to implement min-heap
-#[derive(PartialEq, Eq, Debug)]
-struct PriorityItem<T: Ord + PartialOrd> {
-    priority: u64,
-    item: T,
-}
-
-impl<T: Ord + PartialOrd> Ord for PriorityItem<T> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // Reverse ordering for min-heap
-        other.priority.cmp(&self.priority)
-        // other.item.partial_cmp(&self.item).unwrap_or(Ordering::Equal) // You can also compare the items here
-    }
-}
-
-impl<T: Ord + PartialOrd> PartialOrd for PriorityItem<T> {
-    fn partial_cmp(&self, other: &Self) -> std::option::Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-fn calculate_backoff(retry_count: u32) -> Duration {
-    let base_delay_ms = 10;
-    let jitter_ms = rand::thread_rng().gen_range(0..100);
-    let delay_ms = base_delay_ms * 2u64.pow(retry_count) + jitter_ms;
-
-    Duration::from_millis(delay_ms)
-}
-
-async fn generate_data(
-    input_data: InputData,
-    inserter: BatchInserterHandle<Data>,
-    mistake_tx: mpsc::Sender<InputData>,
-    max_retries: u32,
-) -> Result<(), ()> {
-    // Simulate data generation with potential error
-    if input_data.value % 5 != 0 {
-        info!("Generating data from input {:?}", input_data);
-        let data = Data(input_data.value * 2);
-        inserter.insert(data).await.map_err(|_| ())?; // Send Data
-        Ok(())
-    } else {
-        if input_data.retry_count < max_retries {
-            error!("Error generating data for input {:?}", input_data);
-            let mut input_data = input_data.clone();
-            input_data.retry_count += 1;
-            input_data.last_attempt_time = std::time::Instant::now();
-            mistake_tx.send(input_data.clone()).await.map_err(|_| ())?;
-            info!("Data added to PQ {:?}", input_data);
-        } else {
-            error!(
-                "Error generating data for input {:?} - Dropping Data",
-                input_data
-            );
-            info!("Dropping data {:?}", input_data);
-        }
-
-        Err(())
-    }
-}
-
-async fn distribute_data(
-    mut data_stream: impl Stream<Item = InputData> + Unpin,
-    inserter: BatchInserterHandle<Data>,
-    num_generators: usize,
-    max_retries: u32,
-) {
-    let (mistake_tx, mut mistake_rx) = mpsc::channel::<InputData>(100);
-    let mut handles = Vec::new();
-    let mut priority_queue: BinaryHeap<PriorityItem<InputData>> = BinaryHeap::new();
-
-    while let Some(input) = data_stream.next().await {
-        priority_queue.push(PriorityItem {
-            priority: input.last_attempt_time.elapsed().as_millis() as u64,
-            item: input,
-        })
-    }
-
-    let mut current_generator = 0;
-
-    while !priority_queue.is_empty() {
-        while let Ok(data) = mistake_rx.try_recv() {
-            info!("Data received from mistake channel {:?}", data);
-            let backoff_duration = calculate_backoff(data.retry_count);
-            tokio::time::sleep(backoff_duration).await;
-            priority_queue.push(PriorityItem {
-                priority: data.last_attempt_time.elapsed().as_millis() as u64,
-                item: data,
-            })
-        }
-
-        let num_items = std::cmp::min(priority_queue.len(), num_generators);
-        for _ in 0..num_items {
-            if let Some(PriorityItem {
-                item: input_data, ..
-            }) = priority_queue.pop()
-            {
-                let inserter_clone = inserter.clone();
-                let mistake_tx_clone = mistake_tx.clone();
-                let handle = tokio::spawn(async move {
-                    let _result =
-                        generate_data(input_data, inserter_clone, mistake_tx_clone, max_retries)
-                            .await;
-                });
-                handles.push(handle);
-
-                current_generator = (current_generator + 1) % num_generators;
-            }
-        }
-
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    }
-
-    drop(mistake_tx); // close the mistake queue
-    while let Ok(data) = mistake_rx.try_recv() {
-        warn!("Unprocessed Data in Mistake Queue {:?}", data);
-    }
-    for handle in handles {
-        handle.await.unwrap();
-    }
-
-    info!("Distributor finished");
-}
-
-async fn generate_input_stream(num_items: u32) -> impl Stream<Item = InputData> {
-    tokio_stream::iter((0..num_items).map(|value| InputData {
-        value,
-        retry_count: 0,
-        last_attempt_time: std::time::Instant::now(),
-    }))
-}
-
-#[derive(Clone)]
-pub struct BatchInserter<T> {
-    tx: mpsc::Sender<T>,
-    rx: Arc<Mutex<mpsc::Receiver<T>>>,
+pub struct BatchInserter {
+    tx: mpsc::Sender<Task>,
+    rx: Arc<Mutex<mpsc::Receiver<Task>>>,
     processed_count: Arc<AtomicUsize>,
     semaphore: Arc<Semaphore>,
     active_workers: Arc<AtomicUsize>,
@@ -166,10 +22,7 @@ pub struct BatchInserter<T> {
     monitor_shutdown: Arc<Mutex<Option<mpsc::Sender<()>>>>,
 }
 
-impl<T> BatchInserter<T>
-where
-    T: Send + 'static + Clone,
-{
+impl BatchInserter {
     pub fn new<F, Fut>(
         batch_size: usize,
         max_concurrent_inserts: usize,
@@ -177,10 +30,10 @@ where
         batch_timeout: Duration,
     ) -> Self
     where
-        F: Fn(Vec<T>) -> Fut + Send + Sync + 'static + Clone,
+        F: Fn(Vec<Task>) -> Fut + Send + Sync + 'static + Clone,
         Fut: Future<Output = Result<(), String>> + Send,
     {
-        let (tx, rx) = mpsc::channel(batch_size * 2);
+        let (tx, rx) = mpsc::channel(5000);
         let rx = Arc::new(Mutex::new(rx));
 
         let processed_count = Arc::new(AtomicUsize::new(0));
@@ -212,7 +65,7 @@ where
     }
 
     fn spawn_monitor<F, Fut>(
-        rx: Arc<Mutex<mpsc::Receiver<T>>>,
+        rx: Arc<Mutex<mpsc::Receiver<Task>>>,
         batch_size: usize,
         batch_timeout: Duration,
         insert_fn: F,
@@ -222,7 +75,7 @@ where
         mut monitor_shutdown_rx: mpsc::Receiver<()>, // Take ownership of the receiver
     ) -> JoinHandle<Result<(), String>>
     where
-        F: Fn(Vec<T>) -> Fut + Send + Sync + 'static + Clone,
+        F: Fn(Vec<Task>) -> Fut + Send + Sync + 'static + Clone,
         Fut: Future<Output = Result<(), String>> + Send,
     {
         tokio::spawn(async move {
@@ -239,15 +92,19 @@ where
                     return Ok(());
                 }
 
-                let batch =
-                    match timeout(batch_timeout, Self::collect_batch(rx.clone(), batch_size)).await
-                    {
-                        Ok(batch) => batch,
-                        Err(_) => {
-                            warn!("Batch timeout reached with no items.");
-                            continue;
-                        }
-                    };
+                let batch_result =
+                    timeout(batch_timeout, Self::collect_batch(rx.clone(), batch_size)).await;
+
+                let batch = match batch_result {
+                    Ok(batch) => {
+                        info!("Batch collection completed with {} items", batch.len());
+                        batch
+                    }
+                    Err(_) => {
+                        // warn!("Batch timeout reached with no items.");
+                        continue;
+                    }
+                };
 
                 if batch.is_empty() {
                     info!("No items to process; continue waiting data.");
@@ -274,39 +131,51 @@ where
                     active_workers.fetch_sub(1, Ordering::Relaxed);
                 });
             }
-            while active_workers.load(Ordering::SeqCst) > 0 {
-                tokio::time::sleep(Duration::from_millis(100)).await;
-            }
-            info!("Monitor exiting");
-            Ok(())
         })
     }
 
-    async fn collect_batch(rx: Arc<Mutex<mpsc::Receiver<T>>>, batch_size: usize) -> Vec<T> {
+    async fn collect_batch(rx: Arc<Mutex<mpsc::Receiver<Task>>>, batch_size: usize) -> Vec<Task> {
         let mut batch = Vec::with_capacity(batch_size);
         let mut rx = rx.lock().await;
 
         while batch.len() < batch_size {
-            match timeout(Duration::from_millis(5), rx.recv()).await {
-                Ok(Some(item)) => batch.push(item),
+            match timeout(Duration::from_millis(500), rx.recv()).await {
+                Ok(Some(item)) => {
+                    info!(
+                        "Received task id: {:?},batch len: {:?},batch size: {:?}",
+                        item.id,
+                        batch.len(),
+                        batch_size
+                    );
+                    batch.push(item)
+                }
                 Ok(None) => {
                     warn!("Channel closed, stopping collection.");
                     break; // return empty if the channel closes
                 }
                 Err(_) => {
                     if batch.is_empty() {
-                        warn!("No items received during timeout.");
+                        // warn!("No items received during timeout.");
+                        continue;
                     }
-                    continue; // return a partial batch in the case of a timeout
+                    break; // return a partial batch in the case of a timeout
                 }
             }
         }
 
+        info!("Returning batch with {} items", batch.len());
         batch
     }
 
-    pub async fn insert(&self, item: T) -> Result<(), mpsc::error::SendError<T>> {
-        self.tx.send(item).await
+    pub async fn insert(&self, task: Task) -> Result<(), mpsc::error::SendError<Task>> {
+        info!("inserter send task id: {:?}", task.id);
+        let result = self.tx.send(task).await;
+        if result.is_ok() {
+            info!("Task successfully sent to channel");
+        } else {
+            warn!("Failed to send task to channel");
+        }
+        result
     }
 
     pub async fn finish(self) -> Result<usize, String> {
@@ -343,136 +212,4 @@ where
         info!("BatchInserter finished processing all items.");
         Ok(self.processed_count.load(Ordering::SeqCst))
     }
-}
-
-// New struct to wrap BatchInserter and only expose the insert method
-pub struct BatchInserterHandle<T> {
-    inserter: Arc<BatchInserter<T>>,
-}
-
-impl<T> Clone for BatchInserterHandle<T>
-where
-    T: Send + 'static + Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            inserter: self.inserter.clone(),
-        }
-    }
-}
-
-impl<T> BatchInserterHandle<T>
-where
-    T: Send + 'static + Clone,
-{
-    pub fn new(inserter: BatchInserter<T>) -> Self {
-        Self {
-            inserter: Arc::new(inserter),
-        }
-    }
-
-    pub async fn insert(&self, item: T) -> Result<(), mpsc::error::SendError<T>> {
-        self.inserter.insert(item).await
-    }
-}
-
-#[tokio::test]
-async fn test_batch_inserter() {
-    tracing_subscriber::fmt::init();
-
-    let batch_size = 5;
-    let max_concurrent_inserts = 3;
-    let batch_timeout = Duration::from_millis(5000);
-
-    let inserter = BatchInserter::new(
-        batch_size,
-        max_concurrent_inserts,
-        |batch: Vec<u32>| async move {
-            info!("Inserting batch: {:?}", batch);
-            Ok(())
-        },
-        batch_timeout,
-    );
-
-    for i in 0..13 {
-        inserter.insert(i).await.unwrap();
-    }
-
-    let final_count = inserter.finish().await.unwrap();
-
-    assert_eq!(15 / batch_size, final_count);
-}
-
-#[tokio::test]
-async fn test_batch_inserter_multithreaded() {
-    tracing_subscriber::fmt::init();
-
-    let batch_size = 5;
-    let max_concurrent_inserts = 1;
-    let batch_timeout = Duration::from_millis(500);
-
-    let inserter = BatchInserter::new(
-        batch_size,
-        max_concurrent_inserts,
-        |batch: Vec<u32>| async move {
-            info!("Inserting batch: {:?}", batch);
-            Ok(())
-        },
-        batch_timeout,
-    );
-
-    // Number of items to insert and number of threads
-    let num_items = 50;
-    let num_threads = 4;
-
-    let mut handles = vec![];
-
-    let inserter_handler = BatchInserterHandle::new(inserter.clone());
-
-    // Simulate multi-threaded inserts
-    for thread_id in 0..num_threads {
-        let inserter_clone = inserter_handler.clone();
-        let start = thread_id * (num_items / num_threads);
-        let end = start + (num_items / num_threads);
-
-        handles.push(tokio::spawn(async move {
-            for i in start..end {
-                inserter_clone.insert(i as u32).await.unwrap();
-                info!("Thread {} inserted {}", thread_id, i);
-            }
-        }));
-    }
-
-    // Wait for all threads to finish
-    for handle in handles {
-        handle.await.unwrap();
-    }
-
-    // Finish the BatchInserter
-    let final_count = inserter.finish().await.unwrap();
-
-    assert_eq!(num_items / batch_size, final_count);
-}
-
-#[tokio::test]
-async fn test_distributer_with_inserter() {
-    tracing_subscriber::fmt::init();
-    let inserter = BatchInserter::new(
-        50, // batch_size
-        10, // max_concurrent_inserts
-        |batch: Vec<Data>| async move {
-            info!("Inserting batch: {:?}", batch);
-            Ok(())
-        },
-        Duration::from_millis(5000),
-    );
-
-    let inserter_handle = BatchInserterHandle::new(inserter.clone());
-
-    let input_stream = generate_input_stream(200).await;
-
-    distribute_data(input_stream, inserter_handle, 20, 1).await;
-
-    let final_count = inserter.finish().await;
-    println!("Processed {} items", final_count.unwrap());
 }

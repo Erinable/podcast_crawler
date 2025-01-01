@@ -143,3 +143,67 @@ fn count_results<T>(results: &[TaskResult<T>]) -> (usize, usize) {
         }
     })
 }
+
+pub async fn process_batch_exp<T: Clone + Send + 'static>(
+    crawler: impl Crawler<T> + Clone + Send + Sync + 'static,
+    urls: &[String],
+    insert_batch: usize,
+    batch_index: usize,
+    max_batches: usize,
+    insert_fn: impl Fn(Vec<T>) -> Result<(), AppError> + Send + Sync + 'static,
+) -> Result<Vec<TaskResult<T>>, AppError> {
+    let start_time = Instant::now();
+
+    let handles: Vec<_> = urls
+        .iter()
+        .map(|url| {
+            let url = url.clone();
+            let crawler = crawler.clone();
+            tokio::spawn(async move {
+                let task_start = Instant::now();
+                match crawler.fetch_and_parse(&url).await {
+                    Ok(result) => {
+                        TaskResult::success(result, task_start.elapsed(), batch_index, max_batches)
+                    }
+                    Err(e) => {
+                        TaskResult::failure(e, url, batch_index, max_batches, task_start.elapsed())
+                    }
+                }
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let results: Vec<TaskResult<T>> =
+        futures::future::try_join_all(handles.into_iter().map(|handle| async move {
+            match handle.await {
+                Ok(task_result) => Ok::<TaskResult<T>, AppError>(task_result),
+                Err(join_error) => Ok(TaskResult::failure(
+                    AppError::from(DomainError::new(
+                        DomainErrorKind::Unexpected,
+                        format!("Task join error: {}", join_error),
+                        None,
+                        None,
+                    )),
+                    "unknown".to_string(),
+                    batch_index,
+                    max_batches,
+                    Duration::default(),
+                )),
+            }
+        }))
+        .await?;
+
+    let successful_results: Vec<T> = results
+        .iter()
+        .filter_map(|result| result.parsed_data().cloned())
+        .collect();
+
+    if !successful_results.is_empty() {
+        insert_fn(successful_results)?;
+    }
+
+    let (success, failure) = count_results(&results);
+    log_batch_completion(start_time, success, failure);
+
+    Ok(results)
+}

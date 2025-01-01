@@ -66,3 +66,26 @@ pub struct UpdatePodcast {
     pub summary: Option<String>,
     pub subtitle: Option<String>,
 }
+
+impl From<&NewPodcast> for UpdatePodcast {
+    fn from(podcast: &NewPodcast) -> Self {
+        Self {
+            title: Some(podcast.title.clone()),
+            description: podcast.description.clone(),
+            link: podcast.link.clone(),
+            last_build_date: podcast.last_build_date,
+            language: podcast.language.clone(),
+            copyright: podcast.copyright.clone(),
+            image_url: podcast.image_url.clone(),
+            rss_feed_url: podcast.rss_feed_url.clone(),
+            category: podcast.category.clone(),
+            author: podcast.author.clone(),
+            owner_name: podcast.owner_name.clone(),
+            owner_email: podcast.owner_email.clone(),
+            keywords: podcast.keywords.clone(),
+            explicit: podcast.explicit,
+            summary: podcast.summary.clone(),
+            subtitle: podcast.subtitle.clone(),
+        }
+    }
+}

@@ -195,54 +195,54 @@ where
         .await
     }
 
-    async fn fetch_and_parse(&self, url: &str) -> TaskResult<T> {
-        let start = Instant::now();
-        let result = match self.fetch(url).await {
-            Ok(result) => match self.parse(result, url).await {
-                Ok(parsed) => TaskResult::success(url.to_string(), parsed, start.elapsed()),
-                Err(e) => TaskResult::failure(url.to_string(), e.to_string(), start.elapsed()),
-            },
-            Err(e) => TaskResult::failure(url.to_string(), e.to_string(), start.elapsed()),
-        };
-        result
-    }
+    // async fn fetch_and_parse(&self, url: &str) -> TaskResult<T> {
+    //     let start = Instant::now();
+    //     let result = match self.fetch(url).await {
+    //         Ok(result) => match self.parse(result, url).await {
+    //             Ok(parsed) => TaskResult::success(url.to_string(), parsed, start.elapsed()),
+    //             Err(e) => TaskResult::failure(url.to_string(), e.to_string(), start.elapsed()),
+    //         },
+    //         Err(e) => TaskResult::failure(url.to_string(), e.to_string(), start.elapsed()),
+    //     };
+    //     result
+    // }
 
-    pub fn max_concurrent(&self) -> usize {
-        self.max_concurrent
-    }
+    // pub fn max_concurrent(&self) -> usize {
+    //     self.max_concurrent
+    // }
 
-    pub fn report_statistics(&self) {
-        let success_rate = if self.total_tasks.load(Ordering::SeqCst) > 0 {
-            (self.successful_tasks.load(Ordering::SeqCst) as f64
-                / self.total_tasks.load(Ordering::SeqCst) as f64)
-                * 100.0
-        } else {
-            0.0
-        };
+    // pub fn report_statistics(&self) {
+    //     let success_rate = if self.total_tasks.load(Ordering::SeqCst) > 0 {
+    //         (self.successful_tasks.load(Ordering::SeqCst) as f64
+    //             / self.total_tasks.load(Ordering::SeqCst) as f64)
+    //             * 100.0
+    //     } else {
+    //         0.0
+    //     };
 
-        let avg_time = if self.total_tasks.load(Ordering::SeqCst) > 0 {
-            let total_time_locked = self.total_time.lock().unwrap();
-            let total_tasks_count = self.total_tasks.load(Ordering::SeqCst);
-            total_time_locked.div_f64(total_tasks_count as f64)
-        } else {
-            Duration::new(0, 0)
-        };
+    //     let avg_time = if self.total_tasks.load(Ordering::SeqCst) > 0 {
+    //         let total_time_locked = self.total_time.lock().unwrap();
+    //         let total_tasks_count = self.total_tasks.load(Ordering::SeqCst);
+    //         total_time_locked.div_f64(total_tasks_count as f64)
+    //     } else {
+    //         Duration::new(0, 0)
+    //     };
 
-        println!("\n=== Crawler Statistics ===");
-        println!("Total tasks: {}", self.total_tasks.load(Ordering::SeqCst));
-        println!(
-            "Successful tasks: {} ({:.1}%)",
-            self.successful_tasks.load(Ordering::SeqCst),
-            success_rate
-        );
-        println!("Failed tasks: {}", self.failed_tasks.load(Ordering::SeqCst));
-        println!("Average completion time: {:?}", avg_time);
-        println!("\nFailure Reasons:");
-        for reason in self.failure_reasons.lock().unwrap().iter() {
-            println!("  {}", reason);
-        }
-        println!("=====================");
-    }
+    //     println!("\n=== Crawler Statistics ===");
+    //     println!("Total tasks: {}", self.total_tasks.load(Ordering::SeqCst));
+    //     println!(
+    //         "Successful tasks: {} ({:.1}%)",
+    //         self.successful_tasks.load(Ordering::SeqCst),
+    //         success_rate
+    //     );
+    //     println!("Failed tasks: {}", self.failed_tasks.load(Ordering::SeqCst));
+    //     println!("Average completion time: {:?}", avg_time);
+    //     println!("\nFailure Reasons:");
+    //     for reason in self.failure_reasons.lock().unwrap().iter() {
+    //         println!("  {}", reason);
+    //     }
+    //     println!("=====================");
+    // }
 }
 
 #[async_trait::async_trait]
@@ -252,7 +252,7 @@ where
     T: Send + Sync + 'static + Clone,
 {
     async fn fetch(&self, url: &str) -> Result<Vec<u8>, AppError> {
-        println!("Attempting to fetch URL: {}", url);
+        info!("Attempting to fetch URL: {}", url);
         let response = self
             .client
             .get(url)
@@ -270,8 +270,8 @@ where
                 )
             })?;
 
-        println!("Response status: {}", response.status());
-        println!("Response headers: {:?}", response.headers());
+        info!("Response status: {}", response.status());
+        info!("Response headers: {:?}", response.headers());
 
         if !response.status().is_success() {
             let status = response.status();
@@ -306,7 +306,7 @@ where
             })?
             .to_vec();
 
-        println!("Bytes read successfully: {} bytes", bytes.len());
+        info!("Bytes read successfully: {} bytes", bytes.len());
         Ok(bytes)
     }
 
@@ -315,17 +315,17 @@ where
         parser.parse(&content, url).await
     }
 
-    async fn fetch_and_parse(&self, url: &str) -> Result<T, AppError> {
-        let result = match self.fetch(url).await {
-            Ok(result) => match self.parse(result, url).await {
-                Ok(parsed) => parsed,
-                Err(e) => return Err(e),
-            },
-            Err(e) => return Err(e),
-        };
+    // async fn fetch_and_parse(&self, url: &str) -> Result<T, AppError> {
+    //     let result = match self.fetch(url).await {
+    //         Ok(result) => match self.parse(result, url).await {
+    //             Ok(parsed) => parsed,
+    //             Err(e) => return Err(e),
+    //         },
+    //         Err(e) => return Err(e),
+    //     };
 
-        Ok(result)
-    }
+    //     Ok(result)
+    // }
 
     fn max_concurrent(&self) -> usize {
         self.max_concurrent

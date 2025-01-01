@@ -7,7 +7,6 @@ use crate::crawler::url_utils;
 use crate::crawler::TaskResult;
 use crate::infrastructure::error::{AppError, DomainError, DomainErrorKind};
 
-pub(crate) use inserter::BatchInserter;
 pub(crate) use processor::process_batch;
 
 impl<T> From<processor::TaskResult<T>> for TaskResult<T> {
@@ -100,7 +99,7 @@ where
     let distributed_urls = url_utils::distribute_urls(&urls, insert_batch)?;
 
     for (batch_index, batch_urls) in distributed_urls.iter().enumerate() {
-        let batch_results = processor::process_batch(
+        let batch_results = process_batch(
             crawler.clone(),
             batch_urls,
             insert_batch,

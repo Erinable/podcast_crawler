@@ -53,10 +53,10 @@ impl ThreadManager {
 
     pub async fn start(&mut self) {
         let timer_queue = self.timer_queue.clone();
-        println!("⏰ Starting timer queue worker");
+        tracing::info!("⏰ Starting timer queue worker");
         self.task_tracker
             .spawn(async move { timer_queue.start_worker().await });
-        println!(
+        tracing::info!(
             "🚀 ThreadManager: Starting workers. Total workers: {}",
             self.workers.len()
         );
@@ -71,16 +71,29 @@ impl ThreadManager {
             let mut worker_clone = worker.clone();
 
             self.task_tracker.spawn(async move {
-                worker_clone
-                    .new_start(
+                crate::metrics::ACTIVE_WORKERS.inc();
+                tracing::info!(
+                    "🚀 Worker {} started, active workers: {}",
+                    worker_clone.id,
+                    crate::metrics::ACTIVE_WORKERS.get()
+                );
+                let result = worker_clone
+                    .start(
                         worker_task_rx,
                         worker_cancellation_token,
                         timer_queue,
                         shutdown_coordinator,
                     )
-                    .await
+                    .await;
+                crate::metrics::ACTIVE_WORKERS.dec();
+                tracing::info!(
+                    "🛑 Worker {} stopped, active workers: {}",
+                    worker_clone.id,
+                    crate::metrics::ACTIVE_WORKERS.get()
+                );
+                result
             });
         }
-        println!("🎉 ThreadManager start completed");
+        tracing::info!("🎉 ThreadManager start completed");
     }
 }
