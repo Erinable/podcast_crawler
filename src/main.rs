@@ -11,14 +11,7 @@ use podcast_crawler::{
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
-// Added a placeholder implementation for health_check
-impl AppState {
-    async fn health_check(&self) -> AppResult<()> {
-        info!("Performing health check");
-        // Add actual health check logic here
-        Ok(())
-    }
-}
+
 
 async fn init_app() -> AppResult<Arc<AppState>> {
     metrics::init_metrics();
