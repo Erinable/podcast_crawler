@@ -24,7 +24,7 @@ async fn init_app() -> AppResult<Arc<AppState>> {
 }
 
 async fn run_test_tasks(state: Arc<AppState>) -> AppResult<()> {
-    let n = 1;
+    let n = 0;
     let urls = state.repositories.podcast_rank.get_rss_urls().await?;
     let random_samples: Vec<_> = if n != 0 {
         let mut rng = thread_rng();
@@ -44,7 +44,7 @@ async fn run_test_tasks(state: Arc<AppState>) -> AppResult<()> {
     Ok(())
 }
 
-async fn start_http_server(state: Arc<AppState>) -> AppResult<actix_web::dev::Server> {
+async fn start_http_server() -> AppResult<actix_web::dev::Server> {
     let metrics_server = metrics::start_metrics_server();
     info!("HTTP server started successfully");
     Ok(metrics_server)
@@ -90,8 +90,8 @@ async fn handle_shutdown(metrics_server: actix_web::dev::Server) -> AppResult<()
 #[tokio::main]
 async fn main() -> AppResult<()> {
     let state = init_app().await?;
-    run_test_tasks(state.clone()).await?;
-    let metrics_server = start_http_server(state).await?;
+    run_test_tasks(state).await?;
+    let metrics_server = start_http_server().await?;
     handle_shutdown(metrics_server).await?;
     Ok(())
 }
