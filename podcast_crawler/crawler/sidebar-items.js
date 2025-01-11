@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["batch_processor","crawler_impl","rate_limiter","rss","traits","url_utils"],"struct":["HttpCrawler","TaskResult"]};

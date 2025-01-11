@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["run_batch_processor","run_batch_processor_with_inserter"],"mod":["inserter","processor","stats"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["active_rate","authors_text","avg_comment_count","avg_duration","avg_interact_indicator","avg_open_rate","avg_play_count","avg_update_freq","first_episode_post_time","id","last_release_date","last_release_date_day_count","links","logo_url","name","primary_genre_name","rank","star","track_count"]};

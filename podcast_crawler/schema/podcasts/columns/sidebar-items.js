@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["author","category","copyright","description","explicit","image_url","keywords","language","last_build_date","link","owner_email","owner_name","podcast_id","rss_feed_url","star","subtitle","summary","title"]};

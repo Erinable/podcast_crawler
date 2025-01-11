@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AppError"],"mod":["domain","external","infrastructure","macros","network","parse"],"trait":["AppResultExt"],"type":["AppResult"]};

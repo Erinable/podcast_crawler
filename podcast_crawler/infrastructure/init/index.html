@@ -1,0 +1,41 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Application initialization and state management."><title>podcast_crawler::infrastructure::init - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="podcast_crawler" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0-nightly (b1a7dfb91 2025-01-10)" data-channel="nightly" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../podcast_crawler/index.html">podcast_<wbr>crawler</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module init</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#architecture" title="Architecture">Architecture</a></li><li><a href="#components" title="Components">Components</a></li><li><a href="#example" title="Example">Example</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In podcast_<wbr>crawler::<wbr>infrastructure</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><span class="rustdoc-breadcrumbs"><a href="../../index.html">podcast_crawler</a>::<wbr><a href="../index.html">infrastructure</a></span><h1>Module <span>init</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/podcast_crawler/infrastructure/init.rs.html#1-378">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Application initialization and state management.</p>
+<p>This module provides functionality for initializing and managing the application state,
+including:</p>
+<ul>
+<li>Database connections and pooling</li>
+<li>Repository implementations</li>
+<li>Logging configuration and setup</li>
+<li>Application settings and configuration</li>
+<li>Health checks and monitoring</li>
+</ul>
+<h2 id="architecture"><a class="doc-anchor" href="#architecture">§</a>Architecture</h2>
+<p>The initialization module follows a layered architecture:</p>
+<div class="example-wrap"><pre class="language-text"><code>┌─────────────────┐
+│    AppState     │
+├─────────────────┤
+│ Repositories    │
+├─────────────────┤
+│ DatabaseContext │
+├─────────────────┤
+│    Settings     │
+└─────────────────┘</code></pre></div><h2 id="components"><a class="doc-anchor" href="#components">§</a>Components</h2>
+<ul>
+<li><code>AppState</code>: Main container for all application components</li>
+<li><code>AppRepositories</code>: Repository implementations for data access</li>
+<li><code>DatabaseContext</code>: Database connection and transaction management</li>
+<li><code>Settings</code>: Application configuration and settings</li>
+</ul>
+<h2 id="example"><a class="doc-anchor" href="#example">§</a>Example</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>podcast_crawler::infrastructure::AppState;
+
+<span class="attr">#[tokio::main]
+</span><span class="kw">async fn </span>main() -&gt; <span class="prelude-ty">Result</span>&lt;(), Box&lt;<span class="kw">dyn </span>std::error::Error&gt;&gt; {
+    <span class="comment">// Initialize with default settings
+    </span><span class="kw">let </span>app_state = AppState::init().<span class="kw">await</span><span class="question-mark">?</span>;
+
+    <span class="comment">// Perform health check
+    </span>app_state.health_check().<span class="kw">await</span><span class="question-mark">?</span>;
+
+    <span class="prelude-val">Ok</span>(())
+}</code></pre></div>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="struct" href="struct.AppRepositories.html" title="struct podcast_crawler::infrastructure::init::AppRepositories">AppRepositories</a></div><div class="desc docblock-short">Application repositories container</div></li><li><div class="item-name"><a class="struct" href="struct.AppState.html" title="struct podcast_crawler::infrastructure::init::AppState">AppState</a></div><div class="desc docblock-short">Application state containing all initialized components</div></li></ul></section></div></main></body></html>

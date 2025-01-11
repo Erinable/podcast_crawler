@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_process_batch_fn"],"struct":["ResultData","ShutdownCoordinator","TaskManagementSystem","TaskWorkerMaps"]};

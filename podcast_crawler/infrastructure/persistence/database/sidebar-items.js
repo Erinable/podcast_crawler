@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["establish_connection"],"struct":["DatabaseContext"],"type":["DbConnection","DbPool"]};
