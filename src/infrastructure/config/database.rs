@@ -63,6 +63,7 @@ pub struct DatabaseConfig {
     pub min_connections: u32,
     pub connect_timeout_seconds: u64,
     pub idle_timeout_seconds: u64,
+    pub no_ssl: bool,
 }
 
 impl Default for DatabaseConfig {
@@ -73,6 +74,7 @@ impl Default for DatabaseConfig {
             min_connections: 2,
             connect_timeout_seconds: 30,
             idle_timeout_seconds: 300,
+            no_ssl: true,
         }
     }
 }
@@ -109,6 +111,7 @@ impl DatabaseConfig {
             self.connect_timeout_seconds
         );
         config_set_env!(self, "DATABASE_IDLE_TIMEOUT", self.idle_timeout_seconds);
+        config_set_env!(self, "NO_SSL", self.no_ssl);
         Ok(())
     }
 

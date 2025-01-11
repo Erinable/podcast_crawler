@@ -2,6 +2,7 @@ use crate::infrastructure::error::{AppError, AppResult};
 use crate::infrastructure::persistence::database::DatabaseContext;
 use crate::infrastructure::persistence::models::episode::NewEpisode;
 use crate::infrastructure::persistence::models::podcast::{NewPodcast, Podcast, UpdatePodcast};
+use crate::infrastructure::persistence::models::Episode;
 use crate::infrastructure::persistence::models::UpdateEpisode;
 use crate::schema::{episodes, podcasts};
 use diesel::prelude::*;
@@ -40,10 +41,30 @@ impl PodcastRepository {
         Ok(result)
     }
 
-    pub async fn get_all(&self) -> AppResult<Vec<Podcast>> {
+    pub async fn search_by_title(&self, query: &str) -> AppResult<Vec<Podcast>> {
         let mut conn = self.base.get_connection().await?;
-        let result = podcasts::table.load::<Podcast>(&mut conn).await?;
+        let result = podcasts::table
+            .filter(podcasts::title.ilike(format!("%{}%", query)))
+            .load::<Podcast>(&mut conn)
+            .await?;
         Ok(result)
+    }
+
+    pub async fn get_all(&self, page: i64, per_page: i64) -> AppResult<(Vec<Podcast>, i64)> {
+        let mut conn = self.base.get_connection().await?;
+
+        // Get total count
+        let total: i64 = podcasts::table.count().get_result(&mut conn).await?;
+
+        // Get paginated results
+        let offset = (page - 1) * per_page;
+        let podcasts = podcasts::table
+            .limit(per_page)
+            .offset(offset)
+            .load::<Podcast>(&mut conn)
+            .await?;
+
+        Ok((podcasts, total))
     }
 
     pub async fn insert(&self, new_podcast: &NewPodcast) -> AppResult<()> {
@@ -229,5 +250,66 @@ impl PodcastRepository {
         .await?;
 
         Ok(())
+    }
+
+    pub async fn get_podcast_with_episodes_by_id(
+        &self,
+        id: i32,
+    ) -> AppResult<Option<(Podcast, Vec<Episode>)>> {
+        let mut conn = self.base.get_connection().await?;
+        let podcast = podcasts::table
+            .find(id)
+            .first::<Podcast>(&mut conn)
+            .await
+            .optional()?;
+
+        if let Some(podcast) = podcast {
+            let episodes = episodes::table
+                .filter(episodes::podcast_id.eq(podcast.podcast_id))
+                .load::<Episode>(&mut conn)
+                .await?;
+
+            Ok(Some((podcast, episodes)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub async fn get_podcast_with_paginated_episodes(
+        &self,
+        id: i32,
+        page: i64,
+        per_page: i64,
+    ) -> AppResult<Option<(Podcast, Vec<Episode>, i64)>> {
+        let mut conn = self.base.get_connection().await?;
+
+        let podcast = podcasts::table
+            .find(id)
+            .first::<Podcast>(&mut conn)
+            .await
+            .optional()?;
+
+        if let Some(podcast) = podcast {
+            // Get total count of episodes
+            let total: i64 = episodes::table
+                .filter(episodes::podcast_id.eq(podcast.podcast_id))
+                .count()
+                .get_result(&mut conn)
+                .await?;
+
+            // Get paginated episodes
+            let offset = (page - 1) * per_page;
+            let episodes = episodes::table
+                .filter(episodes::podcast_id.eq(podcast.podcast_id))
+                .order(episodes::pub_date.desc())
+                .limit(per_page)
+                .offset(offset)
+                .load::<Episode>(&mut conn)
+                .await?;
+
+            Ok(Some((podcast, episodes, total)))
+        } else {
+            Ok(None)
+        }
     }
 }

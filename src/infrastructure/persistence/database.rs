@@ -7,8 +7,9 @@
 //! - Error handling with context
 //! - Connection management
 
+use diesel::{ConnectionError, ConnectionResult};
 use diesel_async::pooled_connection::bb8::PooledConnection;
-use diesel_async::pooled_connection::{bb8::Pool, AsyncDieselConnectionManager};
+use diesel_async::pooled_connection::{bb8::Pool, AsyncDieselConnectionManager, ManagerConfig};
 use diesel_async::AsyncPgConnection;
 
 use crate::infrastructure::config::DatabaseConfig;
@@ -17,6 +18,10 @@ use crate::infrastructure::{
     error::infrastructure::{InfrastructureError, InfrastructureErrorKind},
     AppError, AppResult,
 };
+use futures::future::BoxFuture;
+use futures::FutureExt;
+use rustls::ClientConfig;
+use rustls_platform_verifier::ConfigVerifierExt;
 
 pub type DbPool = Pool<AsyncPgConnection>;
 pub type DbConnection<'a> = PooledConnection<'a, AsyncPgConnection>;
@@ -30,7 +35,16 @@ pub struct DatabaseContext {
 impl DatabaseContext {
     /// Creates a new `DatabaseContext` with the provided configuration
     pub async fn new_with_config(config: &DatabaseConfig) -> AppResult<Self> {
-        let manager = AsyncDieselConnectionManager::<AsyncPgConnection>::new(config.url.clone());
+        let manager = if config.no_ssl {
+            AsyncDieselConnectionManager::<AsyncPgConnection>::new(config.url.clone())
+        } else {
+            let mut mgr_config = ManagerConfig::default();
+            mgr_config.custom_setup = Box::new(establish_connection);
+            AsyncDieselConnectionManager::<AsyncPgConnection>::new_with_config(
+                config.url.clone(),
+                mgr_config,
+            )
+        };
 
         let mut builder = Pool::builder()
             .max_size(config.max_connections)
@@ -75,6 +89,25 @@ impl DatabaseContext {
     pub fn pool(&self) -> &DbPool {
         &self.pool
     }
+}
+
+fn establish_connection(config: &str) -> BoxFuture<ConnectionResult<AsyncPgConnection>> {
+    let fut = async {
+        // Create a new connection to the database
+        // Setup the TLS configuration for the connection using native certs
+        // Using https://crates.io/crates/rustls-platform-verifier
+        // replaces using rustls-native-certs on its own (recommended)
+        let tls_config = ClientConfig::with_platform_verifier();
+        let tls = tokio_postgres_rustls::MakeRustlsConnect::new(tls_config);
+
+        // get the client and connection future
+        let (client, conn) = tokio_postgres::connect(config, tls)
+            .await
+            .map_err(|e| ConnectionError::BadConnection(e.to_string()))?;
+
+        AsyncPgConnection::try_from_client_and_connection(client, conn).await
+    };
+    fut.boxed()
 }
 
 #[cfg(test)]

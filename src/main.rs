@@ -44,8 +44,8 @@ async fn run_test_tasks(state: Arc<AppState>) -> AppResult<()> {
     Ok(())
 }
 
-async fn start_http_server() -> AppResult<actix_web::dev::Server> {
-    let metrics_server = metrics::start_metrics_server();
+async fn start_http_server(state: Arc<AppState>) -> AppResult<actix_web::dev::Server> {
+    let metrics_server = metrics::start_metrics_server(state);
     info!("HTTP server started successfully");
     Ok(metrics_server)
 }
@@ -90,8 +90,8 @@ async fn handle_shutdown(metrics_server: actix_web::dev::Server) -> AppResult<()
 #[tokio::main]
 async fn main() -> AppResult<()> {
     let state = init_app().await?;
-    run_test_tasks(state).await?;
-    let metrics_server = start_http_server().await?;
+    run_test_tasks(state.clone()).await?;
+    let metrics_server = start_http_server(state).await?;
     handle_shutdown(metrics_server).await?;
     Ok(())
 }

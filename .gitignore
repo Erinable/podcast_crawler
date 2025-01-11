@@ -95,3 +95,4 @@ lcov.info
 # Project-specific temporary files
 podcast_crawler.log*
 podcast_crawler.pid
+.aider*

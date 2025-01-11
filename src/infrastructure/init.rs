@@ -295,13 +295,17 @@ impl AppState {
         })?;
 
         // Basic repository checks
-        self.repositories.podcast.get_all().await.map_err(|e| {
-            AppError::Infrastructure(InfrastructureError::new(
-                InfrastructureErrorKind::Database,
-                "Podcast repository check failed".to_string(),
-                Some(Box::new(e)),
-            ))
-        })?;
+        self.repositories
+            .podcast
+            .get_all(1, 10)
+            .await
+            .map_err(|e| {
+                AppError::Infrastructure(InfrastructureError::new(
+                    InfrastructureErrorKind::Database,
+                    "Podcast repository check failed".to_string(),
+                    Some(Box::new(e)),
+                ))
+            })?;
 
         Ok(())
     }
